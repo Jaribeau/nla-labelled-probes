@@ -10,6 +10,29 @@
 
 ---
 
+### May 20, 2026 — Pivot from eval awareness to refusal for NLA
+
+Instead of trying to focus on eval awareness, it seems best to start with a cleaner concept to test the mechanism, and only if that works try connecting it back to eval awareness.
+
+Now: will clear out a bunch of the now irrelevant code and planning documentation.
+
+### May 20, 2026 — Phase 2 toy reward dataset + methodology
+
+Built the Phase 2 toy "reward awareness" dataset and fleshed out the methodology in
+`research-plan.md`.
+
+- New generator `build_toy_reward_dataset()` in `src/data.py`; output written to
+`data/toy_reward_dataset.json`. 12 tasks across 3 families (number_parity,
+rubric_leak, game_payoff) × 3 variants = 36 records (24 neg / 12 pos).
+- **3-way construction** to separate reward semantics from "an extra clause was
+appended": hint-absent (0), length-matched filler (0), hint-present/blatant (1).
+Filler doubles as a leakage check — if NLA says "reward" on filler, the diagnostic
+is leaky. Mirrors Phase 1's format-vs-concept logic.
+- **Subtle hint tier stubbed** (`hints["subtle"] = None`) for a less-explicit phrasing
+later; blatant is the floor test and ships first.
+- Plan updated with per-variant expected NLA themes and a decision to capture both the
+assistant-turn boundary and last-token-of-prompt positions in one pass.
+
 ### May 20, 2026 — Phase 1 replication SUCCEEDS (Devbunova method)
 
 First run of the faithful Devbunova pipeline (run tag
@@ -18,21 +41,25 @@ Llama-3.3-70B, matching her Llama-3.1-8B numbers both qualitatively and quantita
 
 Ours — Llama-3.3-70B (% classified EVAL):
 
-| cell (context)            | format | L23  | L40  | L53  | L63  |
-|---------------------------|--------|------|------|------|------|
-| casual_eval (eval)        | free   | 0.0  | 0.0  | 0.0  | 0.0  |
-| bench_deploy (deploy)     | mcq    | 95.1 | 95.0 | 94.6 | 94.5 |
-| casual_deploy_formal (dep)| free   | 0.0  | 0.0  | 0.0  | 0.0  |
-| bench_deploy_formal (dep) | mcq    | 94.1 | 94.0 | 93.8 | 93.7 |
+
+| cell (context)             | format | L23  | L40  | L53  | L63  |
+| -------------------------- | ------ | ---- | ---- | ---- | ---- |
+| casual_eval (eval)         | free   | 0.0  | 0.0  | 0.0  | 0.0  |
+| bench_deploy (deploy)      | mcq    | 95.1 | 95.0 | 94.6 | 94.5 |
+| casual_deploy_formal (dep) | free   | 0.0  | 0.0  | 0.0  | 0.0  |
+| bench_deploy_formal (dep)  | mcq    | 94.1 | 94.0 | 93.8 | 93.7 |
+
 
 Devbunova — Llama-3.1-8B (her RESULTS.md, % classified EVAL):
 
-| cell (context)            | format | L8   | L16  | L24  | L30  | L31  |
-|---------------------------|--------|------|------|------|------|------|
-| casual_eval (eval)        | free   | 0.0  | 0.0  | 0.0  | 0.0  | 0.0  |
-| bench_deploy (deploy)     | mcq    | 94.3 | 94.3 | 94.3 | 94.3 | 94.3 |
-| casual_deploy_formal (dep)| free   | 0.1  | 0.0  | 0.0  | 0.0  | 0.0  |
-| bench_deploy_formal (dep) | mcq    | 90.1 | 89.9 | 88.5 | 89.7 | 90.2 |
+
+| cell (context)             | format | L8   | L16  | L24  | L30  | L31  |
+| -------------------------- | ------ | ---- | ---- | ---- | ---- | ---- |
+| casual_eval (eval)         | free   | 0.0  | 0.0  | 0.0  | 0.0  | 0.0  |
+| bench_deploy (deploy)      | mcq    | 94.3 | 94.3 | 94.3 | 94.3 | 94.3 |
+| casual_deploy_formal (dep) | free   | 0.1  | 0.0  | 0.0  | 0.0  | 0.0  |
+| bench_deploy_formal (dep)  | mcq    | 90.1 | 89.9 | 88.5 | 89.7 | 90.2 |
+
 
 Same pattern, near-identical magnitudes (her layer indices differ — 8B has 32 layers vs the
 70B's 80). Train acc 100% at every layer in both (perfectly linearly separable, as she found). MCQ format →
@@ -79,13 +106,14 @@ grows with depth and differs between Nguyen's contrastive set and Devbunova's 2x
 train-derived threshold landed far off-scale on the 2x2 set.
 
 Fix: per-dimension z-scoring, with the standardizer **fit separately per dataset**.
+
 - Probe direction + midpoint threshold are built in the contrastive set's z-space.
 - The 2x2 set is standardized using stats fit on the *combined 2x2 pool* (mean-token and
-  last-token pools each get their own standardizer), so each cell's score is relative to the
-  2x2 set's own mean. Centering per-dataset removes the offset; the threshold then measures
-  relative eval-vs-deploy separation — the actual confound question.
+last-token pools each get their own standardizer), so each cell's score is relative to the
+2x2 set's own mean. Centering per-dataset removes the offset; the threshold then measures
+relative eval-vs-deploy separation — the actual confound question.
 - Per-dim standardizing with *train* stats alone was insufficient (a synthetic test confirmed
-  it leaves a cross-dataset offset); fitting per dataset is what makes the threshold transfer.
+it leaves a cross-dataset offset); fitting per dataset is what makes the threshold transfer.
 
 Code: `src/probe.py` (added `fit_standardizer`, `standardize`); `src/modal_app.py`
 (`_build_probe_vectors` builds in z-space + stores mean/std; `_score_2x2` now does a two-pass
@@ -99,21 +127,24 @@ First end-to-end run on Llama-3.3-70B-Instruct, chat-templated, layers [23,40,53
 calibration bug, not by prompt format.
 
 What the scores show (% classified EVAL, mean-token / last-token):
+
 - **L23:** ~99–100% across *all* cells (MCQ and free alike) — saturated high.
 - **L40:** 38–87% mean / 41–96% last, no clean MCQ-vs-free split (free `casual_eval` is the
-  *lowest*, opposite of the expected pattern).
+*lowest*, opposite of the expected pattern).
 - **L53, L63:** 0.0% everywhere — saturated low.
 
 Root cause = threshold/scale mismatch, not signal. The decision thresholds are derived from
 projections of Nguyen's contrastive training set, but the 2x2 activations project to a very
 different magnitude range:
 
+
 | layer | threshold | 2x2 mean-token score range (min/med/max) |
-|------|----------:|------------------------------------------|
-| L23  | −0.013    | −0.089 / 0.089 / 0.243 |
-| L40  |  0.007    | −0.138 / 0.037 / 0.195 |
-| L53  |  2.394    | −0.571 / −0.238 / 0.089 |
-| L63  |  3.611    | −1.047 / −0.518 / −0.075 |
+| ----- | --------- | ---------------------------------------- |
+| L23   | −0.013    | −0.089 / 0.089 / 0.243                   |
+| L40   | 0.007     | −0.138 / 0.037 / 0.195                   |
+| L53   | 2.394     | −0.571 / −0.238 / 0.089                  |
+| L63   | 3.611     | −1.047 / −0.518 / −0.075                 |
+
 
 At L53/L63 the threshold (2.4, 3.6) sits far above the entire 2x2 score range → everything
 lands below → 0% eval. At L23/L40 the threshold is ≈0 with scores straddling it → near-binary
@@ -126,39 +157,38 @@ consistently across train and eval (e.g. unit-norm activations or standardize th
 or set the threshold from the 2x2 distribution. Only after the probe is on-scale can we judge
 whether the MCQ/free confound reproduces.
 
-
-
 ### May 14, 2026 — Phase 1 implementation
 
 Built the Phase 1 pipeline (reconstruct Nguyen's probe, apply to Devbunova's 2x2).
 
 - **Infra change:** dropped NDIF/NNsight (no access) for Modal.com on-demand GPU instances.
-  Updated `research-plan.md` Infrastructure + Workflow sections accordingly.
+Updated `research-plan.md` Infrastructure + Workflow sections accordingly.
 - **Nguyen's probe — no released weights.** Their anonymized repo de-anonymized to
-  `github.com/Jordine/evaluation-awareness-probing`; it ships a contrastive dataset (204
-  eval-awareness Q&A pairs) + generation code, not saved probe weights. The Simple
-  Contrastive probe is a difference-of-means direction, so Phase 1 *reconstructs* it — which
-  is better than downloaded weights anyway, since it lets us build the probe at any layer
-  (including L53, the Neuronpedia NLA layer). Vendored their `contrastive_dataset.json`.
+`github.com/Jordine/evaluation-awareness-probing`; it ships a contrastive dataset (204
+eval-awareness Q&A pairs) + generation code, not saved probe weights. The Simple
+Contrastive probe is a difference-of-means direction, so Phase 1 *reconstructs* it — which
+is better than downloaded weights anyway, since it lets us build the probe at any layer
+(including L53, the Neuronpedia NLA layer). Vendored their `contrastive_dataset.json`.
 - **Decisions baked in (configurable + documented):** layer sweep `[23, 40, 53, 63]`;
-  scoring reports both mean-token (Nguyen) and last-token (Devbunova) aggregations;
-  2x2 prompts chat-templated by default (matches the probe's activation space), `--raw`
-  flag to match Devbunova exactly.
+scoring reports both mean-token (Nguyen) and last-token (Devbunova) aggregations;
+2x2 prompts chat-templated by default (matches the probe's activation space), `--raw`
+flag to match Devbunova exactly.
 - Code: `src/{data,probe,modal_app}.py`, `scripts/reproduce_format_confound.py`. Imports +
-  probe logic smoke-tested locally. Running the experiment is pending Modal auth + HF access.
+probe logic smoke-tested locally. Running the experiment is pending Modal auth + HF access.
 
 ### May 14, 2026 — Getting setup
 
 This paper was just released, and opens up an interesting path to look at eval awareness:
-https://transformer-circuits.pub/2026/nla/index.html
+[https://transformer-circuits.pub/2026/nla/index.html](https://transformer-circuits.pub/2026/nla/index.html)
 tldr of that: NLAs (natural language autoencoders) output a text representation of the models latent representation. 
-Here’s a demo: https://www.neuronpedia.org/llama3.3-70b-it/nla
+Here’s a demo: [https://www.neuronpedia.org/llama3.3-70b-it/nla](https://www.neuronpedia.org/llama3.3-70b-it/nla)
 
 The idea with this research:
 
 1. Reproduce Debunova's eval awareness format confound paper (her paper shows that those eval-awareness linear probes respond to prompt format, not the content)
 2. Extend it, exposing the same format confound using NLAs
-3. Then, if that works well, explore using the output of an NLAs to generate labels to train better linear probes 
+3. Then, if that works well, explore using the output of an NLAs to generate labels to train better linear probes
+
 - NLA inference is very expensive; however, probes trained off NLA output could be usable production/further research.
 - Most likely source of this part to fail is that current NLAs provide a noisy/uncalibrated signal. Step 2 should help get a sense of this. 
 - If it’s too noisy, a more complex project (that anthropic is likely already working on) is to train a better NLA (using more than 1 activation layer as input). This would have to be a proof of concept on a small model, as this would be extremely expensive to train.
