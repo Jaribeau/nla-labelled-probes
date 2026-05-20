@@ -3,6 +3,7 @@
 /debunova-2026-eval-awareness-format
 .env
 .venv
+/data/archive
 
 # Python
 __pycache__/

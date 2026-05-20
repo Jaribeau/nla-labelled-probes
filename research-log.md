@@ -10,6 +10,13 @@
 
 ---
 
+### May 20, 2026 — Rewrote plan for refusal design + cleaned up repo
+
+Rewrote `research-plan.md` around the refusal design: skeleton with the same sections but  
+Part 1 (does the NLA verbalize refusal on probe-positive activations?) and Part 2 (recover  
+the refusal direction from NLA-derived labels; compare to Arditi via cosine + AUROC) instead  
+of phases.
+
 ### May 20, 2026 — Pivot from eval awareness to refusal for NLA
 
 Instead of trying to focus on eval awareness, it seems best to start with a cleaner concept to test the mechanism, and only if that works try connecting it back to eval awareness.

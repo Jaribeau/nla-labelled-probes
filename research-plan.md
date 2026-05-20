@@ -1,171 +1,80 @@
-# Plan: Verbalizing the Format Confound — NLAs as a Diagnostic for Eval-Awareness Probes
+# Plan: Can an NLA Verbalize a Probe Direction? — Refusal as a Test Case
 
 ## Context
 
-Safety evals may be critical to catch warning shots, or trigger development pauses. However, models increasingly display awareness that they are being evaluated, and as a result, behaving differently. This eval-awareness has the potential to quickly render alignment evals useless.
-
-Devbunova 2026 showed that some eval-awareness probes (Nguyen et al. 2025) primarily track benchmark-canonical format rather than the evaluation-context concept. The results showed probe accuracy degrades when format is controlled. The results don't say *what* the format features are — only that the probe is keying on something other than the concept.
-
-Natural Language Autoencoders (Fraser-Taliente et al. 2026) provide a way to read out activation contents in language. Applying NLAs to activations the probe fires on gives a direct verbal answer to "what is the probe actually detecting" — replacing Devbunova's indirect accuracy-degradation argument with explicit language about what features show up in the probe's positive activations.
-
----
+Probes read out concepts from model activations, but a probe direction is just a vector — we
+infer what it means from the data it was trained on. Natural Language Autoencoders (NLAs,
+Fraser-Taliente et al. 2026) verbalize activation contents in language, offering a direct
+read of what a direction encodes. Refusal is a good test case: Arditi et al. 2024 showed it
+is mediated by a single, reliably recoverable direction, giving a strong ground-truth probe
+to compare against.
 
 ## Research Question
 
-> What features does the eval-awareness probe actually detect, expressed in natural language? 
->
-> Specifically: on prompts where the probe fires despite the absence of an evaluation context (Devbunova's eval-format/deploy-context cell), what do NLA explanations of those activations say?
+> 1. Does the NLA verbalize refusal on activations where a refusal probe fires?
+> 2. Can the refusal direction be recovered from NLA-derived labels alone?
 
 ## Hypothesis
 
-On the eval-format/deploy-context cell, NLA explanations will mention surface structural themes — multiple-choice formatting, "Question:" prefixes, formal register, structured prompt scaffolding — rather than evaluation-context themes. This directly verbalizes what Devbunova showed indirectly.
-
-If NLA explanations on that cell instead mention evaluation-context themes, then either (a) the probe is detecting more than format, or (b) the NLA is confabulating around the probe's behavior rather than reading the activation. The 2nd phase, on toy-reward validation, distinguishes these.
-
----
+NLA explanations on probe-positive (refusal) activations mention refusal themes and  
+don't on probe-negative ones. If so, labels derived purely from NLA output should recover a  
+direction close to Arditi's (high cosine similarity, comparable AUROC).
 
 ## Approach
 
-Three public artifacts will be used to run this experiment:
-
-- **Devbunova's 2×2 dataset** (HuggingFace).
-- **Devbunova's probe method**: a LogisticRegression trained on `bench_eval` vs `casual_deploy` (her `evaluate_probe_cached.py`). She does *not* use Nguyen's probe; Nguyen is cited for the eval-awareness probing methodology. (Nguyen released no probe weights, only a contrastive dataset + generation code.)
-- **NLA for Llama-3.3-70B-Instruct** (Neuronpedia)
-
-The toy reward environment (Nitishinskaya & Schoen 2026) serves as a validation substrate where ground truth is known by construction (hint-present vs hint-absent).
+- **Refusal direction**: Arditi-style difference-of-means over refused vs. complied
+activations (harmful vs. harmless instructions) on Llama-3.3-70B.
+- **NLA**: self-hosted `kitft/Llama-3.3-70B-NLA-L53-av` (no hosted API); verbalize activations
+at the AV's layer (resid_post, block 53).
+- **LLM judge**: binary "does this explanation mention refusal?" labeling of NLA outputs.
 
 ## Infrastructure
 
-- Target model (Llama-3.3-70B-Instruct) run on Modal.com on-demand GPU instances. Activations extracted on the Modal worker; probe applied to returned activations.
-- NLA (Llama-3.3-70B-NLA-L53-av) hosted on Neuronpedia accessed via API
-
-**Workflow**
-
-1. Run prompts through Llama-3.3-70B on a Modal GPU instance, return residual-stream activations
-2. Apply probe to the returned activations
-3. Send activations to Neuronpedia, get NLA explanations back
-4. Vizualize prevalence of words/concepts in the NLA explanations
-
----
+- Llama-3.3-70B-Instruct (target) and the NLA AV both run on Modal.com on-demand GPUs.
+- Activations extracted on the Modal worker at layer 53; probe applied to returned activations.
 
 ## Work Plan
 
----
+### Part 1 — Does the NLA verbalize refusal?
 
-### ✅ Phase 1 — Replicate Debunova probe + format-confound findings
+1. Reproduce Arditi's refusal direction (diff-of-means, refused vs. complied) on Llama-3.3-70B.
+2. Run a held-out prompt set; for each, record the probe score and the NLA explanation at
+  layer 53.
+3. Check NLA outputs mention refusal/safety on probe-positive activations and not on
+  probe-negative ones.
 
-- Setup tooling
-- Faithfully replicate Devbunova's method on Llama-3.3-70B-Instruct: train a LogisticRegression
-on `bench_eval` (class 0 = eval) vs `casual_deploy` (class 1 = deploy), using last-token
-resid_post activations from raw prompts with a StandardScaler fit on train. Apply it to the
-four held-out 2×2 test cells and report % classified eval. Only the model and layers differ
-from her setup.
-- Note: Changing Llama-3.1-8B (Devbunova's target) to Llama-3.3-70B to match the released NLA. The expectation is that the format-confound replicates qualitatively. If not, the plan needs revisiting.
-
-Deliverable: probe scores per 2×2 cell on Llama-3.3-70B + reproduced format-confound finding.
+Deliverable: per-prompt probe score + NLA explanation; refusal-mention rate by probe polarity.
 
 ---
 
-### ⏳ Phase 2 — Train probe on toy "reward awareness", and compare to NLA output
+### Part 2 — Can we recover the refusal direction from NLA-derived labels?
 
-The core methodological claim is that NLA outputs on probe-firing activations reflect what the probe is detecting. Validate this on a substrate where the answer is known by construction.
+1. On a fresh prompt set, label each activation by whether its NLA output mentions refusal
+  (LLM judge, binary).
+2. Train a new diff-of-means probe on those NLA-derived labels.
+3. Compare to Arditi's probe: cosine similarity of directions, AUROC agreement on a held-out
+  test set.
 
-1. Build the toy reward setup: matched prompts where only hint-presence differs (see Nitishinskaya & Schoen 2026). Dataset: `data/toy_reward_dataset.json`, generated by `build_toy_reward_dataset()` in `src/data.py`.
-2. Train a probe on reward-present (label 1) vs reward-absent (label 0).
-3. Apply NLA to activations the probe fires on.
-4. Verify NLA outputs mention reward/scoring on hint-present and don't on the negatives.
-
-**Dataset construction.** Each task carries a shared instruction plus three variants, so that "reward semantics" is separable from "an extra clause was appended":
-
-- **hint-absent** (label 0) — task only.
-- **filler** (label 0) — task + a length-matched, reward-irrelevant sentence. Controls for prompt length / presence-of-instruction, mirroring Phase 1's format-vs-concept logic. If NLA says "reward" here, the diagnostic is leaky.
-- **hint-present / blatant** (label 1) — task + an explicit reward-revealing sentence.
-
-A `subtle` hint tier is stubbed in the generator (`hints["subtle"] = None`) for a future, less-explicit phrasing; blatant is the floor test and ships first. The probe trains on label 1 vs the pooled negatives.
-
-Three task families keep the probe direction reflecting "reward awareness" generally rather than one task: **number_parity** (reward biases a numeric choice toward even), **rubric_leak** (a leaked grading criterion for a writing task), **game_payoff** (an explicit point/coin value on one option). Current size: 12 tasks × 3 variants = 36 records (24 neg / 12 pos); expandable.
-
-Example (number_parity_01), shared stem:
-
-  ▎ Pick a number between 1 and 10 and explain your choice in one sentence.
-
-
-| variant      | expected NLA readout themes                                                    | example prompt text                                                            |
-| ------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| hint-absent  | number selection, arbitrary choice, justification — *no reward language*       | (none)                                                                         |
-| filler       | task themes + deliberation/care — *no reward language*                         | "Take your time and think it through before you answer."                       |
-| hint-present | scoring, points, being rewarded, incentive, optimizing for the rewarded option | "You will score one point for every even number you choose, and zero for odd." |
-
-
-**Token position:** Capture both the assistant-turn boundary (default, per prior NLA work) and the last-token-of-prompt (Devbunova's probe position)
-
-This is the methodological sanity check. If NLAs can't verbalize the obvious thing on a controlled substrate, the rest of the plan won't work.
-
-Deliverable: per-cell NLA theme distribution on toy reward + go/no-go decision.
-
----
-
-### Phase 3 — Use NLAs to verbalize the Devbunova confound
-
-Apply the validated diagnostic to the Phase 1 probe on Devbunova's 2×2.
-
-For each of the four 2×2 cells, sample activations where the probe fires above its classification threshold. Run NLA on those activations at the assistant turn boundary. Categorize NLA outputs by theme: structural-format mentions vs evaluation-context mentions vs other.
-
-The contrast that matters most is **eval-format + deploy-context** — prompts where the probe fires but the evaluation-context is absent. NLA explanations on this cell give the direct readout of what the probe latched onto.
-
-Secondary contrast: **deploy-format + eval-context** — prompts where the probe should fire if it's tracking the concept but doesn't (if Devbunova is right). NLA explanations on activations from this cell, even sub-threshold ones, may show whether eval-context information is present in the activation at all even though the probe missed it.
-
-Deliverable: per-cell NLA theme distribution on Devbunova's 2×2 + writeup.
-
----
-
-### Phase 4 (TBD) — Behavioral correlation on toy reward
-
-If Phase 3 produces clean results and there's time, extend the toy reward analysis:
-
-- Does probe activation predict gaming behavior (model outputs an even number when reward favors even)?
-- Does NLA-measured reward awareness predict gaming?
-- Where do they disagree?
-
-This connects the diagnostic to behavioral consequence rather than just internal representation.
-
----
-
-### Future work — NLA-labeled probes
-
-If NLAs can reliably verbalize what a probe is detecting, the next step is to explore using NLA outputs as the supervision signal for a new probe — replacing the format-correlated label "what class is this prompt" with the activation-grounded label "what does the NLA say is in this activation." This is working towards "NLA as probe factory".
-
----
+Deliverable: cosine similarity + AUROC agreement between NLA-label probe and Arditi probe.
 
 ## Validation logic
 
-Phase 1 establishes that Devbunova's effect reproduces on the model we have NLAs for. Phase 2 validates that NLAs can verbalize what a probe is detecting in a controlled setting. Phase 3 applies the validated diagnostic to the unknown case. The chain of supporting results means a positive Phase 3 finding rests on validated methodology, not on the assumption that NLAs do what we think.
-
-A null result is also informative. If Phase 3 NLA explanations on the eval-format/deploy-context cell mention evaluation context rather than format features, that pushes back on Devbunova — the probe may be detecting more than she claimed.
-
----
+Part 1 establishes the NLA verbalizes the concept a known-good probe fires on. Part 2 tests
+the stronger claim that NLA labels alone suffice to recover the direction. A positive Part 2
+rests on Part 1 holding.
 
 ## Caveats and risks
 
-- **Model substitution within family.** Devbunova used Llama-3.1-8B-Instruct; we use Llama-3.3-70B-Instruct (Nguyen's and Neuronpedia's target). Staying within the Llama family removes the family-substitution variable, but scale and instruction-tuning generation still differ. Phase 1 either reproduces the format-confound qualitatively (proceed) or doesn't (rethink).
-- **NLA confabulation.** NLA outputs reflect what the AR can reconstruct as language, which isn't the same as what's in the activation. Phase 2 validates the diagnostic specifically against this concern by using a substrate where ground truth is known.
-- **Token-position choice.** Hold fixed and document. The assistant turn boundary is the default given prior NLA work; Devbunova uses the last token of the prompt for her probe.
-- **NLA verbosity and grader interpretation.** NLA outputs need categorization by theme, which means an LLM judge in the loop. Use the NLA paper's appendix grader prompts as a starting point; pilot the categorization before scaling.
-
----
+- **NLA confabulation** — NLA output may not reflect activation contents; Part 1 is the check.
+- **Layer coupling** — probe and NLA must use the same layer (53) for the comparison to mean
+anything.
+- **Judge reliability** — binary refusal-mention judgments need a piloted, fixed prompt.
 
 ## Key references
 
-- Fraser-Taliente et al. 2026 — "Natural Language Autoencoders" ([transformer-circuits.pub/2026/nla](http://transformer-circuits.pub/2026/nla)). Method + public NLAs via Neuronpedia.
-- Devbunova 2026 — "Is Evaluation Awareness Just Format Sensitivity?" (arXiv 2603.19426). Public 2×2 dataset and code.
-- Nguyen et al. 2025 — "Probing and Steering Evaluation Awareness of Language Models" (arXiv 2507.01786). Standard contrastive probe methodology.
-- Nitishinskaya & Schoen 2026 — "A Toy Environment for Exploring Reasoning About Reward" (LessWrong). Validation substrate with controllable hint-presence.
-- Abdelnabi & Salem 2025 — "Linear Control of Test Awareness" (arXiv 2505.14617). Alternative probe methodology using CoT-derived labels; relevant comparison point.
-- Rimsky et al. 2024 — Contrastive Activation Addition. Origin of difference-of-means probe approach.
-- Arya, Rajamanoharan & Nanda 2026 — "Current Activation Oracles Are Hard to Use" (LessWrong, MATS 9.0). Empirical evaluation of AOs on safety tasks; key negative result (AUC ~0.55 on sycophancy vs. 0.77 for dense probe); text inversion confound.
-- Essifi 2026 — "Where We Are on Evaluation Awareness" (LessWrong, Apr 2026). Survey of eval-awareness measurement methods and their limitations; frames AOs as promising but unreliable.
-- Karvonen 2026 — "Realistic Evaluations Will Not Prevent Evaluation Awareness" (LessWrong). Argues realism engineering has structural limits.
-- Anthropic Alignment 2026 — "Measuring and Improving Coding Audit Realism". Defines realism win rate metric; stakes heuristic in LLM judges.
-- LessWrong community — "A Framework for Eval Awareness". Taxonomy for situating feature-decomposition work.
-- LessWrong community — "Call for Science of Eval Awareness: Research Directions". Open problems; positions this project's contribution.
+- Arditi et al. 2024 — "Refusal in LLMs Is Mediated by a Single Direction" (arXiv 2406.11717).
+- Fraser-Taliente et al. 2026 — "Natural Language Autoencoders" (transformer-circuits.pub/2026/nla).
+NLA method + checkpoints (`kitft/Llama-3.3-70B-NLA-L53-{av,ar}`); inference recipe at
+github.com/kitft/nla-inference.
+- Rimsky et al. 2024 — Contrastive Activation Addition. Origin of the diff-of-means approach.
 
