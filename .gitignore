@@ -1,3 +1,16 @@
 /docs/refs/refs-source-material/
 .claude/
 /debunova-2026-eval-awareness-format
+.env
+.venv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Phase 1 artifacts (large / regenerable)
+data/probes/
+*.npz
+*.pt

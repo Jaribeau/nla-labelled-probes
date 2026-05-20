@@ -1,0 +1,7 @@
+# Local orchestration + analysis. The 70B model itself runs on Modal (see src/modal_app.py),
+# so torch/transformers are NOT needed locally — only inside the Modal image.
+modal>=0.64
+huggingface_hub>=0.24
+datasets>=2.20
+numpy>=1.24
+python-dotenv>=1.0
