@@ -47,5 +47,23 @@ The script builds the diff-of-means refusal direction (`src/probe.py`) from refu
 
 - `data/results/part1_refusal_nla_<tag>.json` — per-prompt probe score, fires flag, NLA
 explanation, and refusal-keyword hits (raw explanations kept for later LLM-judge re-grading).
+- `data/results/part1_refusal_acts_<tag>.npz` — raw held-out activations (L40/53/63) for Part 2.
 - `data/probes/part1_refusal_dir_<tag>.json` — the unit direction + threshold per layer.
+
+Render a report: `python scripts/viz_part1.py [results.json]` (writes a sibling `.html`).
+
+### Part 2 — recover the direction from NLA-derived labels
+
+Offline / no GPU. Reads a Part 1 run's artifacts, labels each activation by whether the NLA
+explanation indicates refusal (Claude judge), rebuilds a diff-of-means direction from those
+labels, and compares it to Arditi's. Needs `ANTHROPIC_API_KEY` in `.env`.
+
+```bash
+python scripts/part2_recover_direction.py [--run-id <tag>] [--pilot 10] [--regrade]
+python scripts/viz_part2.py            # render the HTML report
+```
+
+Writes `data/results/part2_judge_<tag>.json` (raw judge calls, re-gradable) and
+`part2_recover_<tag>.json` (cosine of NLA-label vs Arditi direction, per-layer AUROC,
+divergence cases).
 

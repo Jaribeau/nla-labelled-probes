@@ -41,6 +41,21 @@ def build_probe(test_acts, deploy_acts):
     return test_acts.mean(axis=0) - deploy_acts.mean(axis=0)
 
 
+def build_probe_weighted(acts, weights):
+    """Soft-label diff-of-means: weighted_mean(acts, w) - weighted_mean(acts, 1-w).
+
+    weights[i] in [0,1] = P(positive class) for activation i. The hard-label build_probe is
+    the special case weights in {0,1}. Down-weights ambiguous (w~0.5) activations in both
+    means, so hedged labels contribute little to the direction.
+    """
+    acts = np.asarray(acts, dtype=np.float64)
+    w = np.asarray(weights, dtype=np.float64)
+    wp, wn = w.sum(), (1.0 - w).sum()
+    pos = (acts * w[:, None]).sum(axis=0) / wp if wp > 0 else np.zeros(acts.shape[1])
+    neg = (acts * (1.0 - w)[:, None]).sum(axis=0) / wn if wn > 0 else np.zeros(acts.shape[1])
+    return pos - neg
+
+
 def unit(v):
     v = np.asarray(v, dtype=np.float64)
     n = np.linalg.norm(v)
@@ -71,3 +86,25 @@ def classify_eval(scores, threshold):
     deploy activations -- the test side is unambiguously the high side.
     """
     return np.asarray(scores) > threshold
+
+
+def cosine(a, b):
+    """Cosine similarity between two vectors."""
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    na, nb = np.linalg.norm(a), np.linalg.norm(b)
+    return float(a @ b / (na * nb)) if na > 0 and nb > 0 else 0.0
+
+
+def auroc(scores, labels):
+    """Tie-averaged AUROC = P(score | label=1 > score | label=0). Pure numpy."""
+    scores = np.asarray(scores, dtype=np.float64)
+    labels = np.asarray(labels)
+    pos, neg = scores[labels == 1], scores[labels == 0]
+    if len(pos) == 0 or len(neg) == 0:
+        return float("nan")
+    _, inv, counts = np.unique(scores, return_inverse=True, return_counts=True)
+    csum = np.cumsum(counts)
+    avg_rank = (csum - counts + 1 + csum) / 2.0
+    ranks = avg_rank[inv]
+    return (ranks[labels == 1].sum() - len(pos) * (len(pos) + 1) / 2.0) / (len(pos) * len(neg))

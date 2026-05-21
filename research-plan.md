@@ -22,11 +22,11 @@ direction close to Arditi's (high cosine similarity, comparable AUROC).
 
 ## Approach
 
-- **Refusal direction**: Arditi-style difference-of-means over refused vs. complied
-activations (harmful vs. harmless instructions) on Llama-3.3-70B.
-- **NLA**: self-hosted `kitft/Llama-3.3-70B-NLA-L53-av` (no hosted API); verbalize activations
-at the AV's layer (resid_post, block 53).
-- **LLM judge**: binary "does this explanation mention refusal?" labeling of NLA outputs.
+1. **Use NLA to verbalize activations on harmful/harmless prompts**
+2. **Evaluate NLA verbalizations with LLM judge** ("does this explanation mention refusal?" labeling of NLA outputs.)
+3. **Train NLA Labelled Probe** (using using refused/permitted NLA outputs.)
+4. **Train standard refusal direction probe** (using harmful/benign prompt dataset labels.)
+5. Compare to standard probe
 
 ## Infrastructure
 
@@ -35,7 +35,7 @@ at the AV's layer (resid_post, block 53).
 
 ## Work Plan
 
-### Part 1 — Does the NLA verbalize refusal?
+### ✅ Part 1 — Does the NLA verbalize refusal?
 
 1. Reproduce Arditi's refusal direction (diff-of-means, refused vs. complied) on Llama-3.3-70B.
 2. Run a held-out prompt set; for each, record the probe score and the NLA explanation at
@@ -75,10 +75,10 @@ split by projection sign (or train-projection midpoint threshold).
 
 ---
 
-### Part 2 — Can we recover the refusal direction from NLA-derived labels?
+### ✅ Part 2 — Can we recover the refusal direction from NLA-derived labels?
 
 1. On a fresh prompt set, label each activation by whether its NLA output mentions refusal
-  (LLM judge, binary).
+  (LLM judge).
 2. Train a new diff-of-means probe on those NLA-derived labels.
 3. Compare to Arditi's probe: cosine similarity of directions, AUROC agreement on a held-out
   test set.
