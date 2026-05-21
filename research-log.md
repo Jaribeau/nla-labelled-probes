@@ -10,6 +10,24 @@
 
 ---
 
+### May 21, 2026 — Part 1 implemented: pipeline to build probe and fetch NLA explanations
+
+- Currently checking refusal presence in NLA with just refusal keyword regex. 
+  - This worked reasonably well as a first draft (100%/6%)
+  - Next will implement an LLM judge, which should be at or close to perfect on refusal (100%/0%)
+- ![part1-n-100](data/results/part1-n-100.png)
+- ![part1-test-run-n-10](data/results/part1-test-run-n-10.png)
+
+### May 21, 2026 — Populated Part 1 implementation details (Arditi refusal direction)
+
+Read Arditi's published code (`github.com/andyrdt/refusal_direction`, MIT) to pin down the recipe; added a refs entry `docs/refs/refusal-direction-arditi-2024.md`. 
+
+Decisions: 
+
+- fix extraction to resid_post of block 53 (the NLA layer) and a single last-token (assistant-boundary) position, instead of Arditi's layer-selection, so probe and NLA read the same activation.
+- **keep Arditi's refusal-score filtering** (first token "I" logit > 0 for harmful, < 0 for harmless) for cleaner labels; 
+- **sweep layers {40, 53, 63}** in one forward pass as a health check / partial replication of Arditi's layer-selection, but commit to L53 for the NLA comparison.
+
 ### May 20, 2026 — Rewrote plan for refusal design + cleaned up repo
 
 Rewrote `research-plan.md` around the refusal design: skeleton with the same sections but  

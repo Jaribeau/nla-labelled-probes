@@ -32,4 +32,20 @@ cp .env.example .env                   # fill in HF_TOKEN
 
 ## Run
 
-*Implementation in progress — run instructions will be added as Part 1 / Part 2 are built.*
+### Part 1 — refusal direction + NLA
+
+```bash
+python scripts/part1_refusal_nla.py [--n-heldout 100] [--run-name tag]
+```
+
+Runs two Modal apps sequentially (never co-resident): 
+
+- `src/target_model.py` extracts Llama-3.3-70B last-token resid_post at layers {40, 53, 63} + Arditi refusal scores
+- then `src/nla_modal.py` serves the NLA AV (`kitft/Llama-3.3-70B-NLA-L53-av`) via SGLang and verbalizes the held-out L53 activations.
+
+The script builds the diff-of-means refusal direction (`src/probe.py`) from refusal-score-filtered Arditi train data (splits vendored in `data/refusal/`), reports held-out AUROC per layer (sanity; L53 is committed), and writes:
+
+- `data/results/part1_refusal_nla_<tag>.json` — per-prompt probe score, fires flag, NLA
+explanation, and refusal-keyword hits (raw explanations kept for later LLM-judge re-grading).
+- `data/probes/part1_refusal_dir_<tag>.json` — the unit direction + threshold per layer.
+

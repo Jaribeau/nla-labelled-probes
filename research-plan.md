@@ -45,6 +45,34 @@ at the AV's layer (resid_post, block 53).
 
 Deliverable: per-prompt probe score + NLA explanation; refusal-mention rate by probe polarity.
 
+#### Implementation
+
+Arditi's recipe (datasets, chat template, refusal-score filter, diff-of-means) is documented in
+`docs/refs/refusal-direction-arditi-2024.md`; only our deviations and new code are listed here.
+
+- **Data** — vendor Arditi's precomputed splits into `data/refusal/`; loader `src/data_refusal.py`.
+Sample `n_train=128`/`n_val=32` (seed 42), then apply Arditi's refusal-score filter.
+- **Extraction** — `src/target_model.py` (Modal, Llama-3.3-70B, adapt from `src/modal_app.py`):
+capture **resid_post** at the **last token** (assistant-turn boundary) for layers **{40, 53, 63}**
+in one forward pass. One vector per instruction per layer. *(Deviation from Arditi: fixed
+extraction point instead of his per-(pos, layer) selection, so probe and NLA read the same
+activation.)*
+- **Probe** — `refusal_dir = mean(harmful) − mean(harmless)` per layer via `src/probe.py`
+(`build_probe`); score held-out activations by projection (`project`). The {40, 53, 63} sweep
+is a health check / partial replication — report AUROC per layer; the best-separating layer
+should land where Arditi's selection does (~60–80% depth; L53 ≈ 66%). **L53 is committed** for
+the NLA comparison; 40/63 are sanity only.
+- **NLA verbalization** — `src/nla.py` (`NLAClient`) + `src/nla_modal.py` (Modal app serving
+`kitft/Llama-3.3-70B-NLA-L53-av` via SGLang). Inject each held-out L53 activation, get the
+`<explanation>`; reads `injection_scale`/template from the checkpoint's `nla_meta.yaml`. Target
+extraction and AV serving run **sequentially** (two 70B models).
+- **Grading** — keyword/regex pass for refusal/safety terms; persist every raw explanation +
+probe score per prompt to `data/results/part1_refusal_nla_<runid>.json` for later LLM-judge re-grading.
+- **Orchestrator** — `scripts/part1_refusal_nla.py`.
+
+Open choices: held-out set = balanced `harmful_test` + `harmless_test` sample; probe-positive/negative
+split by projection sign (or train-projection midpoint threshold).
+
 ---
 
 ### Part 2 — Can we recover the refusal direction from NLA-derived labels?
