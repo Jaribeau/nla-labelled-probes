@@ -10,6 +10,21 @@
 
 ---
 
+### May 21, 2026 — Reframed project around the audit; added Part 3 + Part 4 to plan
+
+Refusal is an easy case (source label already faithful), so Parts 1–2 validate the *instrument* but not its *value* over supervised probes. The value is the **audit**: NLA + LLM-judge reads what a probe actually fires on, catching confounds invisible to in-distribution accuracy (Devbunova's eval-awareness probe was an MCQ-format detector) — a cheap, general replacement for concept-specific counterfactual datasets.
+
+- Distinguished two products: (a) NLA-labelled probe factory (only beats supervision when labels  
+are confounded) vs (b) NLA audit of an existing probe (more general, lower-risk). 
+- Chose to pursue the audit. 
+- Added to `research-plan.md`: Research Question 3, 
+  - **Part 3** (planted MCQ-format
+  confound on refusal, self-contained — show 2×2 + NLA audit both flag format while in-dist accuracy
+  looks fine; clean Part 1 probe as control), and 
+  - **Part 4** (exploratory difficulty-ladder:stylistic/topical → correlated-concept confounds like eval-awareness-vs-artificiality and  
+  deception-vs-hedging; map where the audit breaks). 
+  - Noted bite-risk (strong refusal signal may resist the planted confound — measure strength) and the audit's reach being bounded by NLA expressiveness.
+
 ### May 21, 2026 — Reviewed divergence cases + changed to probabilistic judge
 
 **Divergence cases (binary judge, 3 of them).** All harmful-source, judged non-refusal:
@@ -34,7 +49,7 @@ position and often hedges; a hard binary throws that away.
 so the binary run's artifacts are preserved; viz fades hedged dots and adds a hedged-cases table.
 - Probabilistic run (`..._part1-n100_prob`): cosine(soft, Arditi) = **0.961** (hard 0.960; binary  
 run was 0.953), judge vs source **99%**, test AUROC **1.0**, **2** divergence + **7 hedged**  
-cases (0.2<p<0.8) 
+cases (0.2<p<0.8)
 
 ### May 21, 2026 — Part 2 implemented + first result (NLA labels recover the direction)
 

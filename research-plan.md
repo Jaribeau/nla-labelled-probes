@@ -13,6 +13,8 @@ to compare against.
 
 > 1. Does the NLA verbalize refusal on activations where a refusal probe fires?
 > 2. Can the refusal direction be recovered from NLA-derived labels alone?
+> 3. Can an NLA + LLM-judge *audit* detect when a probe tracks a **confound** rather than its
+>   named concept — without building a counterfactual dataset?
 
 ## Hypothesis
 
@@ -85,11 +87,72 @@ split by projection sign (or train-projection midpoint threshold).
 
 Deliverable: cosine similarity + AUROC agreement between NLA-label probe and Arditi probe.
 
+---
+
+### Part 3 — Audit demo: NLA catches a planted MCQ-format confound
+
+A probe learns whatever separates its labels, which may be a confound. NLA gives a label-free readout of what a probe actually fires on. 
+
+Part 3 plants an MQC format confound with known ground truth and aims to show that the NLA audit catches the confound.
+
+**Implementation**
+
+1. **Confounded data** — render Arditi instructions in two formats (same content): an MCQ
+  wrapper (`Question: <instr>\n\nChoices:\n(A) …\n(B) …\nAnswer:`) vs free-form prose.
+2. **Confounded probe** — train a diff-of-means "refusal" probe on harmful-MCQ (1) vs
+  harmless-free (0), so format ≡ label. Expect high in-distribution accuracy.
+3. **De-confounded 2×2** ({harmful,harmless} × {MCQ,free}) — the expensive standard check:
+  fire-rate per cell. A concept probe fires on both harmful cells; a format probe fires on both
+   MCQ cells. The off-diagonal reveals confounding and quantifies how much it "bit".
+4. **NLA audit (the cheap catch)** — verbalize the activations the confounded probe fires on; an
+  LLM theme-judge classifies each explanation: structural/format vs refusal/safety vs
+   harmful-topic vs other. A confounded probe → "format" prominent.
+5. **Control** — same audit on the clean Part 1 refusal probe → expect "refusal". The
+  confounded-vs-clean theme distributions side by side are the headline.
+
+Deliverable: confounded probe looks fine in-distribution but the 2×2 + NLA audit both flag
+format; the audit reaches the 2×2's verdict without needing the 2×2. The clean probe audits as
+"refusal" — the audit discriminates good from confounded probes.
+
+Bite-risk: refusal/harm signal is strong (Part 1 AUROC 1.0), so format may not fully dominate.
+Mitigation: measure confound strength via the 2×2 fire-rate gap and treat it as a dial; a
+*partially* confounded probe should still show a *mixed* audit theme distribution, which still  
+demonstrates audit sensitivity. Report the confounding strength.
+
+New code: `src/data_confound.py` (MCQ/free formatting + confounded train + 2×2 splits);
+`src/judge.py` += `judge_theme` (multi-class, piloted prompt, same robust/cached pattern);
+`scripts/part3_audit_confound.py`; `scripts/viz_part3.py` (theme bars confounded-vs-clean, 2×2
+table). Reuse `src/target_model.py`, `src/probe.py`, `src/nla_modal.py`.
+
+---
+
+### Part 4 (exploratory) — Test NLA audit performance on harder confounds
+
+Try to find where the audit stops separating confound from concept.  
+Plant each confound (ground truth known) and reuse Part 3 machinery (build → train → verbalize firing acts → theme-judge).
+
+Confound levels (increasing in expected difficulty):
+
+- **Level 1 — format (i.e. MQC)**
+- **Level 2 — stylistic/affective**: confound the concept with formal register / politeness /  
+sentiment. Does the audit say "formal register" vs the concept?
+- **Level 3 — topical**: confound the positive class with a topic cluster. Topic vs concept?
+- **Level 4 — correlated concept**: eval-awareness vs "artificiality/test-ness"; deception vs hedging / uncertainty / role-play (highest safety value; where there is no behavioral ground truth, so an NLA audit would be helpful).
+
+Deliverable: per-confound audit verdict + a **difficulty-ladder summary** (audit catches levels 1–? reliably, degrades at level ?). 
+
+Limitations: the audit can only catch confounds the NLA verbalizes *and describes differently* from the concept; level-4 entanglement is where NLA language overlaps. Specific level-4 targets TBD.
+
 ## Validation logic
 
 Part 1 establishes the NLA verbalizes the concept a known-good probe fires on. Part 2 tests
 the stronger claim that NLA labels alone suffice to recover the direction. A positive Part 2
 rests on Part 1 holding.
+
+Part 3 shows the audit catches a confound with known ground truth (planted MCQ format),
+validated against the de-confounded 2×2. Part 4 maps how far up the confound-difficulty ladder
+the audit reaches. Together they establish NLA + judge as a cheap, general probe auditor — the
+contribution that survives refusal being an easy case.
 
 ## Caveats and risks
 
@@ -97,6 +160,11 @@ rests on Part 1 holding.
 - **Layer coupling** — probe and NLA must use the same layer (53) for the comparison to mean
 anything.
 - **Judge reliability** — binary refusal-mention judgments need a piloted, fixed prompt.
+- **Confound must bite** — a planted confound only tests the audit if it actually shifts the
+probe; strong intrinsic concept signal (refusal) may resist it. Measure and report strength.
+- **Audit reach is bounded by NLA expressiveness** — the audit can only surface confounds the
+NLA verbalizes and distinguishes in language from the concept. Mapping that boundary is a
+Part 4 goal, not just a limitation.
 
 ## Key references
 
