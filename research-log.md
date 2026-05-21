@@ -10,6 +10,49 @@
 
 ---
 
+### May 21, 2026 — NLA Audit v1 run (Part 3): probe bit on the confound, audit caught it
+![NLA audit v1](data/results/part3-part3v1.png)
+Ran `part3_audit_confound.py --run-name part3v1` (n_train=128, n_cell=50).
+
+- **Confound bit (partially).** 
+  - Confounded probe fire-rates: harmful-MCQ 100%, harmful-free  
+  86%, **harmless-MCQ 54%, harmless-free 0%** → `format_effect_harmless = +54%`,  
+  `concept_effect = 86%`. 
+  - So, it's a *mixture* — still a harm detector, but it now also fires on benign content purely because it's MCQ-wrapped.
+  - Clean Part 1 probe is concept-pure: harmful 100/54%, harmless 0/0% (`format_effect 0`, `concept_effect 100%`).
+- **The Audit caught it.** 
+  - Theme distribution over each probe's firing set: confounded = **42% format** / 57% refusal vs clean = **13% format** / 84% refusal. 
+  - The `harmless_mcq` cell (which only the confounded probe fires on) audits as **100% format**. So the NLA audit flags that the  
+  confounded probe fires on format-themed activations the clean probe ignores.
+- **Methodological lesson.** 
+  - The NLA has a baseline habit of describing conversational structure ("Q&A format established") — `harmless_free` is **92% "format"** theme despite being plain prose. So *absolute* theme rates are baseline-contaminated; the signal lives in the **contrast** (confounded-vs-clean firing; harmless-MCQ vs harmless-free), not the raw rate. 
+  - The fixed 4-class taxonomy is also too coarse (lumps MCQ with generic Q&A).
+- **Next steps (operationalization).** 
+  - Move from fixed-taxonomy judge → **open-vocabulary concept extraction + enrichment heatmap** (concept frequency in high- vs low-projection activations).
+  - Enrichment is self-baselining (cancels the NLA's tics) and works for *discovery* (Part 4) where the confound isn't known in advance. 
+  - Can prototype offline on the cached `part3_verbalize_part3v1.json`.
+
+### May 21, 2026 — Part 3 implemented (audit demo code; not yet run)
+
+Built the Part 3 audit pipeline (validated offline; the GPU+API run is pending):
+
+- `src/data_confound.py` — MCQ-scaffold wrapper (`Question:/Choices:/(A)/(B)/Answer:`, content
+unchanged) + free-form; confounded train (harmful-MCQ=1 vs harmless-free=0) + de-confounded
+2×2 builders, paired so the same instruction appears in both formats.
+- `src/judge.py` — refactored to a shared `_batch` runner; added `judge_theme` (multi-class
+format/refusal/harmful_topic/other, robust + cached like the refusal judge).
+- `scripts/part3_audit_confound.py` — extract L53 (train + 2×2) → confounded diff-of-means
+probe + clean Part 1 dir → 2×2 fire-rates + confound-strength metrics → verbalize 2×2 acts →
+theme-judge → theme distribution over each probe's firing set. Both GPU steps + judge cached
+per `--run-name` (flags `--reextract/--reverbalize/--regrade`) so iteration is free.
+- `scripts/viz_part3.py` — confound-strength cards, 2×2 fire-rate grids (confounded vs clean),
+theme-distribution bars, theme-by-cell, per-prompt table.
+
+Headline to look for: confounded probe fires on the MCQ column (format) and audits as "format";
+clean probe fires on the harmful row and audits as "refusal"/"harmful_topic". Bite-risk
+(strong harm signal) is measured directly via the 2×2 fire-rate gap (`confound_format_effect`
+vs `confound_concept_effect`).
+
 ### May 21, 2026 — Reframed project around the audit; added Part 3 + Part 4 to plan
 
 Refusal is an easy case (source label already faithful), so Parts 1–2 validate the *instrument* but not its *value* over supervised probes. The value is the **audit**: NLA + LLM-judge reads what a probe actually fires on, catching confounds invisible to in-distribution accuracy (Devbunova's eval-awareness probe was an MCQ-format detector) — a cheap, general replacement for concept-specific counterfactual datasets.

@@ -67,3 +67,21 @@ Writes `data/results/part2_judge_<tag>.json` (raw judge calls, re-gradable) and
 `part2_recover_<tag>.json` (cosine of NLA-label vs Arditi direction, per-layer AUROC,
 divergence cases).
 
+### Part 3 — audit: does the NLA catch a planted MCQ-format confound?
+
+Trains a "refusal" probe on format-confounded data (harmful-MCQ vs harmless-free), scores a
+de-confounded 2×2 with it and the clean Part 1 probe, then NLA-verbalizes the 2×2 activations
+and theme-judges them (format / refusal / harmful_topic / other). The headline: the confounded
+probe's firing set should audit as "format", the clean probe's as "refusal". Uses Modal
+(extraction + NLA serving) and `ANTHROPIC_API_KEY` (theme judge).
+
+```bash
+python scripts/part3_audit_confound.py [--run-name v1] [--reextract] [--reverbalize] [--regrade]
+python scripts/viz_part3.py            # render the HTML report
+```
+
+The two GPU steps (extraction, verbalization) and the judge are cached per `--run-name`, so
+re-analysis is free; pass `--reextract` / `--reverbalize` / `--regrade` to force a step. Writes
+`part3_acts_<rn>.npz`, `part3_verbalize_<rn>.json`, `part3_theme_<rn>.json`, and
+`part3_audit_<rn>.json` (2×2 fire-rates, confound strength, per-probe theme distributions).
+
