@@ -10,8 +10,44 @@
 
 ---
 
+### May 21, 2026 — Part 3b run: enrichment audit names the confound unprompted
+
+Implemented + ran the open-vocab concept-enrichment audit on the cached `part3v1` data (no GPU;
+one cached ~200-call concept-extraction pass). `judge_concepts` (`src/judge.py`),
+`scripts/part3_enrichment.py` (general: dir + acts + explanations → enrichment), `scripts/viz_enrichment.py`.
+
+`enrichment = freq(concept | top-third projection) − freq(concept | bottom-third)`:
+
+
+| concept                       | confounded     | clean     |
+| ----------------------------- | -------------- | --------- |
+| refusal                       | +0.89          | +0.95     |
+| illegal activity              | +0.41          | +0.39     |
+| **multiple-choice format**    | **+0.35 👀🔥** | **−0.08** |
+| q&a format (NLA baseline tic) | +0.05          | +0.08     |
+
+
+- **Confound named without a taxonomy:** "multiple-choice format" is a top-3 enriched concept
+for the confounded probe (+0.35) and absent/negative for the clean probe (−0.08).
+- **Self-baselining works:** the generic "q&a format" tic that contaminated the fixed-taxonomy
+run (benign prose was 92% "format") enriches to only ~+0.05–0.08 and drops out — it appears
+equally in high/low projection, so the contrast cancels it. The *specific* MCQ concept survives.
+
+Conclusion: enrichment is a strictly better audit readout than the fixed 4-class theme judge —
+fixes the baseline contamination and works for discovery. This is the tool Part 4 will use.
+
+### May 21, 2026 — Plan: added Part 3b (concept-enrichment audit)
+
+Added **Part 3b** to `research-plan.md`: open-vocab `judge_concepts` + enrichment readout
+(`enrichment = freq(concept | top-third projection) − freq(concept | bottom-third)`), visualized
+as a ranked diverging bar chart (confounded vs clean). Self-baselining (cancels the Q&A tic) and
+discovery-capable (no fixed taxonomy) — Part 4 reuses it as its discovery tool. Planned code:
+`judge_concepts`, `scripts/part3_enrichment.py` (general: dir + acts + explanations → enrichment),
+`scripts/viz_enrichment.py`. Offline; reuses cached Part 3 acts + explanations.
+
 ### May 21, 2026 — NLA Audit v1 run (Part 3): probe bit on the confound, audit caught it
-![NLA audit v1](data/results/part3-part3v1.png)
+
+NLA audit v1
 Ran `part3_audit_confound.py --run-name part3v1` (n_train=128, n_cell=50).
 
 - **Confound bit (partially).** 

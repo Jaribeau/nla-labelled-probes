@@ -127,3 +127,44 @@ def judge_refusal(explanations, model=MODEL, max_workers=8):
 def judge_theme(explanations, model=MODEL, max_workers=8):
     """Classify the dominant theme of each explanation -> {theme: str|None, reason, raw}."""
     return _batch(THEME_SYSTEM, explanations, _parse_theme, {"theme": None}, model, max_workers)
+
+
+# --- open-vocabulary concept extraction (Part 3b enrichment audit) ------------
+
+CONCEPTS_SYSTEM = """You read short descriptions of a language model's internal state at the \
+moment it begins responding to a user request (an "NLA explanation": an automated, possibly \
+noisy verbalization of one activation).
+
+Extract the concepts the description says are PRESENT in that internal state — what the model \
+is representing or about to do. Output 1-4 concise tags.
+
+Rules for tags:
+- short canonical noun phrases, lowercase (e.g. "multiple-choice format", "refusal", \
+"illegal activity", "financial fraud", "formal tone", "factual correction").
+- name SPECIFIC content/structure, not vague words like "response" or "text".
+- prefer reusing the same tag for the same idea across explanations (canonical, not paraphrased).
+- include format/structure as a concept when present (e.g. "multiple-choice format", \
+"question-answer structure").
+
+Respond with ONLY a JSON object, no prose:
+{"concepts": ["tag", "tag", ...]}"""
+
+
+def _parse_concepts(text):
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        return {"concepts": None, "raw": text}
+    try:
+        obj = json.loads(m.group(0))
+        tags = obj["concepts"]
+        if not isinstance(tags, list):
+            return {"concepts": None, "raw": text}
+        norm = sorted({str(t).strip().lower() for t in tags if str(t).strip()})
+        return {"concepts": norm, "raw": text}
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return {"concepts": None, "raw": text}
+
+
+def judge_concepts(explanations, model=MODEL, max_workers=8):
+    """Open-vocab concept tags per explanation -> {concepts: list[str]|None, raw}."""
+    return _batch(CONCEPTS_SYSTEM, explanations, _parse_concepts, {"concepts": None}, model, max_workers)

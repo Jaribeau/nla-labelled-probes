@@ -124,12 +124,36 @@ New code: `src/data_confound.py` (MCQ/free formatting + confounded train + 2×2 
 `scripts/part3_audit_confound.py`; `scripts/viz_part3.py` (theme bars confounded-vs-clean, 2×2
 table). Reuse `src/target_model.py`, `src/probe.py`, `src/nla_modal.py`.
 
+#### Part 3b — From fixed themes to concept enrichment (the general audit readout)
+
+The v1 run worked but exposed two limits of a fixed theme taxonomy: it requires *knowing* the
+confound in advance, and its classes are baseline-contaminated (the NLA's "Q&A format" tic made
+even benign prose 92% "format"). Fix both with an **open-vocabulary, self-baselining** readout.
+
+- **`judge_concepts`** (`src/judge.py`) — per NLA explanation, emit a short list (≤4) of concise
+  open-vocab concept tags (lowercase noun phrases). Reuses the `_batch` runner; robust + cached.
+  v1 normalizes by lowercase/strip; add a codebook-merge pass later if synonym noise is high.
+- **Enrichment** — for a probe, split its activations into top-third vs bottom-third by
+  projection, then per concept `enrichment = freq(concept | high) − freq(concept | low)`.
+  Baseline concepts (the Q&A tic) appear in both → cancel to ~0 → drop out. Top-enriched concepts
+  *are* "what the probe detects". No pre-specified taxonomy → works for **discovery** (Part 4).
+- **Visualization** — a ranked diverging horizontal **enrichment bar chart**, two panels
+  (confounded vs clean). The confound concept ("multiple-choice / format") surfaces near the top
+  for the confounded probe and is ~0 for the clean one — the audit naming the confound unprompted.
+
+Offline / no GPU: reuses the cached `part3_acts_<rn>.npz` + `part3_verbalize_<rn>.json`; one
+cached API pass for concept extraction. New code: `judge_concepts`; `scripts/part3_enrichment.py`
+(general: probe dir + acts + explanations → per-concept enrichment table); `scripts/viz_enrichment.py`.
+
 ---
 
 ### Part 4 (exploratory) — Test NLA audit performance on harder confounds
 
 Try to find where the audit stops separating confound from concept.  
-Plant each confound (ground truth known) and reuse Part 3 machinery (build → train → verbalize firing acts → theme-judge).
+Plant each confound (ground truth known) and reuse Part 3 machinery (build → train → verbalize
+acts → **concept-enrichment readout**, Part 3b). Enrichment is the discovery tool here: the
+confound isn't named in advance, so we look for whichever concept is most enriched in the
+probe's high-projection activations.
 
 Confound levels (increasing in expected difficulty):
 
