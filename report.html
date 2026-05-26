@@ -491,7 +491,7 @@ How much more often a concept appears when the probe fires than when it's quiet 
       </div>
       <figcaption><em>association</em> = frequency(concept | probe fires) − frequency(concept | probe quiet)<br><br>
         The probe mostly tracks <em>"refusal"</em> and <em>"illegal activity"</em>. Generic “q&amp;a format” appears whether 
-        or not the probe fires, and therefore cancels out to near zero.
+        or not the probe fires, and therefore cancels out to near zero. Concepts seen fewer than 4 times (n=200) are dropped.
       </figcaption>
     </figure>
 
@@ -687,7 +687,7 @@ How much more often a concept appears when the probe fires than when it's quiet 
     <h3><span class="appx-label">[A]</span> Target model &amp; activation extraction</h3>
     <p>Llama-3.3-70B-Instruct. Activations are captured as <code>resid_post</code> at the output of
     block 53 (the NLA's layer), at the last token / assistant-turn boundary — one vector per prompt.
-    The probe and the NLA read the <em>same</em> activation, so the comparison is meaningful.</p>
+    The probe and the NLA read the same activation to ensure the comparison is meaningful.</p>
   </div>
 
   <div class="appx" id="appendix-b">
@@ -755,8 +755,8 @@ Respond with ONLY a JSON object: {"concepts": ["tag", ...]}</pre>
     <a class="return-link" data-return href="#">↑ return to body</a>
     <h3><span class="appx-label">[F]</span> Compute &amp; run</h3>
     <p>Modal.com on-demand GPUs — target extraction on H100×2, NLA serving on H100×4
-    (tensor-parallel 4); the two 70B models run sequentially. Judge calls go to the Anthropic API
-    (no GPU). Frozen run <code>part3v1</code>, n = 200 (the 2×2, 50 prompts per cell).</p>
+    (tensor-parallel 4); the two 70B models run sequentially. Concept judge calls go to the Anthropic API. 
+    Frozen run <code>part3v1</code>, n = 200 (the 2×2, 50 prompts per cell).</p>
   </div>
   <br><br>
 
