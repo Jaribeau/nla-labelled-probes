@@ -10,6 +10,45 @@
 
 ---
 
+### May 26, 2026 — Big refactor to clean up the audit pipeline structure
+
+Split the Part 3 monolith (`part3_audit_confound.py` + `part3_association.py`) into discrete,
+cached, re-runnable stages under `scripts/audit_pipeline/`: `0_build_probe`,
+`1_run_prompts_extract_activations`, `2_verbalize_activations`, `3_probe_activations`,
+`4_extract_concepts_from_nla_verbalizations`, `5_analyze_probe_concept_associations`. Probe and
+prompt set are now selectable inputs; confound-specific 2×2 metrics moved to an optional
+`confound_validation` block in stage 3 (new artifact `part3_probe_<rn>.json`). Artifact
+filenames otherwise unchanged so cached GPU outputs (`part3_acts/verbalize_part3v1`) are reused.
+Removed the fixed 4-class theme judge entirely (`judge_theme`/`THEME_SYSTEM`/`viz_part3.py`) —
+superseded by concept-association. `viz_runs.py` Part 3 columns updated (drop theme/audit, add
+prompts/probe); legacy `part3_theme/audit_part3v1` files remain on disk under "Other files".
+
+### May 26, 2026 — Scripts are now interactive CLIs; added a runs viewer
+
+Each script defaults to an interactive prompt when run bare (no flags), listing prior runs /
+files to pick from; flags still work and skip the prompts. Shared helper: `scripts/_cli.py`
+(`interactive()`, `ask_*`, `choose`, `choose_run`, `choose_file`). New `scripts/viz_runs.py`
+scans `data/results/` + `data/probes/`, groups files by part + run id, and writes/opens
+`runs.html` (a table of artifacts per run). README "Run" section simplified to bare commands;
+flag details live in the script docstrings.
+
+### May 26, 2026 — Renamed "enrichment" → "association"; debiased concept judge
+
+Terminology cleanup to match `report.html`, which dropped "enrichment" for "association" /
+"probe–concept-association". Renamed `scripts/part3_enrichment.py` → `part3_association.py`,
+`scripts/viz_enrichment.py` → `viz_association.py`, output `part3_enrichment_<rn>.json` →
+`part3_association_<rn>.json` (and the frozen `part3v1` artifacts + the figure png). Updated
+`research-plan.md` Part 3b/Part 4 wording and `src/judge.py` comment. README Part 3 rewritten
+as the report's 5-step audit pipeline (prompt → probe → verbalize → concept judge → rank by
+association), split into Step A (audit/theme) and Step B (probe–concept association), plus the
+`inspect_concepts.py` raw-vocab viewer.
+
+Also debiased `src/prompts/concept-extraction-judge-prompt.md`: replaced in-domain examples
+(refusal / MCQ / illegal activity) with out-of-domain ones so the judge isn't primed toward the
+concepts under study, and dropped the "reuse tags across explanations" rule (each explanation is
+a separate stateless judge call — canonicalization is a separate post-hoc step). Added
+`--grade-tag` to `part3_association.py` so a re-grade saves alongside prior gradings.
+
 ### May 21, 2026 — Part 3b run: enrichment audit names the confound unprompted
 
 Implemented + ran the open-vocab concept-enrichment audit on the cached `part3v1` data (no GPU;

@@ -133,7 +133,11 @@ def render(path):
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else latest_results()
+    import _cli
+    if _cli.interactive():
+        path = _cli.choose_file("part1_refusal_nla_*.json", "Part 1 results to render")
+    else:
+        path = sys.argv[1] if len(sys.argv) > 1 else latest_results()
     out = path.rsplit(".", 1)[0] + ".html"
     with open(out, "w") as f:
         f.write(render(path))

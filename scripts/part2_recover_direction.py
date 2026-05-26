@@ -81,6 +81,16 @@ def main():
     ap.add_argument("--test-frac", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
+
+    import _cli
+    if _cli.interactive():
+        args.run_id = _cli.choose_run("part1_refusal_nla_*.json",
+                                      r"part1_refusal_nla_(.+)\.json", "Part 1 run")
+        args.pilot = _cli.ask_int("Pilot: judge only first N (0 = full run + training)", args.pilot)
+        args.regrade = _cli.ask_bool("Re-grade (ignore cached judge output)?", args.regrade)
+        args.tag = _cli.ask_str("Output tag suffix (blank = none)", args.tag) or ""
+        args.test_frac = _cli.ask_float("Test fraction", args.test_frac)
+        args.seed = _cli.ask_int("Random seed", args.seed)
     suffix = f"_{args.tag}" if args.tag else ""
 
     run_id = resolve_run_id(args.run_id)

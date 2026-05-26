@@ -232,7 +232,11 @@ If the two lanes have the same color pattern, the NLA judge labels reproduce the
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else latest()
+    import _cli
+    if _cli.interactive():
+        path = _cli.choose_file("part2_recover_*.json", "Part 2 results to render")
+    else:
+        path = sys.argv[1] if len(sys.argv) > 1 else latest()
     out = path.rsplit(".", 1)[0] + ".html"
     with open(out, "w") as f:
         f.write(render(path))

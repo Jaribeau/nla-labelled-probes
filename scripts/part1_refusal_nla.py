@@ -77,6 +77,15 @@ def main():
     ap.add_argument("--run-name", default=None)
     args = ap.parse_args()
 
+    import _cli
+    if _cli.interactive():
+        existing = _cli.list_runs("part1_refusal_nla_*.json", r"part1_refusal_nla_(.+)\.json")
+        if existing:
+            print("Existing Part 1 runs: " + ", ".join(r for r, _ in existing[:8]))
+        args.run_name = _cli.ask_str("Run-name suffix (blank = timestamp only)", "") or None
+        args.n_heldout = _cli.ask_int("Held-out examples per class", args.n_heldout)
+        args.max_new_tokens = _cli.ask_int("NLA explanation length cap", args.max_new_tokens)
+
     run_id = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     if args.run_name:
         run_id += f"_{args.run_name}"

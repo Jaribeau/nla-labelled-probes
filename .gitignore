@@ -4,6 +4,8 @@
 .env
 .venv
 /data/archive
+data/results
+data/refusal
 
 # Python
 __pycache__/
@@ -15,3 +17,6 @@ venv/
 data/probes/
 *.npz
 *.pt
+
+# Generated runs viewer (regenerable: python scripts/viz_runs.py)
+/runs.html

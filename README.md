@@ -20,6 +20,10 @@ Reproduce Arditi's refusal direction on Llama-3.3-70B; check whether the NLA men
 
 Label activations by whether their NLA output mentions refusal (LLM judge), train a new diff-of-means probe on those labels, and compare to Arditi's (cosine similarity, AUROC).
 
+### Part 3 —  Can the NLA audit a probe and catch a hidden confound? Building the probe audit pipeline.
+
+Audit *what a probe actually fires on* by reading the NLA verbalizations of its activations. As a test, train a "refusal" probe on format-confounded data (harmful multiple-choice vs harmless free-text) and check whether the audit surfaces "multiple-choice format" — the planted confound — without it being named in advance.
+
 ---
 
 ## Setup
@@ -34,13 +38,22 @@ cp .env.example .env                   # fill in HF_TOKEN
 
 ## Run
 
-### Part 1 — refusal direction + NLA
+Every script is **interactive by default**: run it with no arguments and it prompts for each
+parameter, listing prior runs / files to pick from. The flags shown in each script's docstring
+still work and skip the prompts (handy for scripting). To see/choose all runs and their
+artifacts in one place:
 
 ```bash
-python scripts/part1_refusal_nla.py [--n-heldout 100] [--run-name tag]
+python scripts/viz_runs.py              # writes runs.html at the repo root and opens it
 ```
 
-Runs two Modal apps sequentially (never co-resident): 
+### Part 1 — Does the NLA verbalize refusal?
+
+```bash
+python scripts/part1_refusal_nla.py
+```
+
+Runs two Modal apps sequentially:
 
 - `src/target_model.py` extracts Llama-3.3-70B last-token resid_post at layers {40, 53, 63} + Arditi refusal scores
 - then `src/nla_modal.py` serves the NLA AV (`kitft/Llama-3.3-70B-NLA-L53-av`) via SGLang and verbalizes the held-out L53 activations.
@@ -52,38 +65,92 @@ explanation, and refusal-keyword hits (raw explanations kept for later LLM-judge
 - `data/results/part1_refusal_acts_<tag>.npz` — raw held-out activations (L40/53/63) for Part 2.
 - `data/probes/part1_refusal_dir_<tag>.json` — the unit direction + threshold per layer.
 
-Render a report: `python scripts/viz_part1.py [results.json]` (writes a sibling `.html`).
+Render a report: `python scripts/viz_part1.py` (pick a run; writes a sibling `.html`).
 
-### Part 2 — recover the direction from NLA-derived labels
+### Part 2 — Can we recover the refusal direction from NLA-derived labels?
 
-Offline / no GPU. Reads a Part 1 run's artifacts, labels each activation by whether the NLA
-explanation indicates refusal (Claude judge), rebuilds a diff-of-means direction from those
-labels, and compares it to Arditi's. Needs `ANTHROPIC_API_KEY` in `.env`.
+Reads Part 1 artifacts, labels each activation by whether the NLA explanation indicates refusal (Claude judge), rebuilds a diff-of-means direction from those labels, and compares it to Arditi's.
 
 ```bash
-python scripts/part2_recover_direction.py [--run-id <tag>] [--pilot 10] [--regrade]
-python scripts/viz_part2.py            # render the HTML report
+python scripts/part2_recover_direction.py   # prompts: which Part 1 run, pilot, regrade, ...
+python scripts/viz_part2.py                  # render the HTML report
 ```
 
-Writes `data/results/part2_judge_<tag>.json` (raw judge calls, re-gradable) and
-`part2_recover_<tag>.json` (cosine of NLA-label vs Arditi direction, per-layer AUROC,
-divergence cases).
+### ⭐️ Part 3 — The probe audit pipeline
 
-### Part 3 — audit: does the NLA catch a planted MCQ-format confound?
+The audit answers "what concepts actually make this probe fire?" 
 
-Trains a "refusal" probe on format-confounded data (harmful-MCQ vs harmless-free), scores a
-de-confounded 2×2 with it and the clean Part 1 probe, then NLA-verbalizes the 2×2 activations
-and theme-judges them (format / refusal / harmful_topic / other). The headline: the confounded
-probe's firing set should audit as "format", the clean probe's as "refusal". Uses Modal
-(extraction + NLA serving) and `ANTHROPIC_API_KEY` (theme judge).
+The pipeline lives in `scripts/audit_pipeline/`. Run them in order to audit  
+any probe on any prompt set. The built-in prompt set is the confound demo: a probe trained on  
+harmful-MCQ vs harmless-free-text, audited on a de-confounded 2×2 to see whether the planted  
+"multiple-choice format" confound surfaces. 
+
+GPU stages use Modal; concept extraction needs`ANTHROPIC_API_KEY`.
+
+**Prerequisite: Build the probe** (or skip and use an existing one):
 
 ```bash
-python scripts/part3_audit_confound.py [--run-name v1] [--reextract] [--reverbalize] [--regrade]
-python scripts/viz_part3.py            # render the HTML report
+python scripts/audit_pipeline/0_build_probe.py
 ```
 
-The two GPU steps (extraction, verbalization) and the judge are cached per `--run-name`, so
-re-analysis is free; pass `--reextract` / `--reverbalize` / `--regrade` to force a step. Writes
-`part3_acts_<rn>.npz`, `part3_verbalize_<rn>.json`, `part3_theme_<rn>.json`, and
-`part3_audit_<rn>.json` (2×2 fire-rates, confound strength, per-probe theme distributions).
+- *Input:* built-in confound training set. 
+- *Output:* `data/probes/part3_confound_dir_<run>.json`.
+
+**Stage 1 — run prompts + extract activations** (GPU):
+
+```bash
+python scripts/audit_pipeline/1_run_prompts_extract_activations.py
+```
+
+- *Input:* built-in 2×2 prompt set. 
+- *Output:* `part3_acts_<run>.npz` + `part3_prompts_<run>.json`.
+
+**Stage 2 — verbalize activations with the NLA** (GPU):
+
+```bash
+python scripts/audit_pipeline/2_verbalize_activations.py
+```
+
+- *Input:* `part3_acts_<run>.npz`. 
+- *Output:* `part3_verbalize_<run>.json`.
+
+**Stage 3 — probe the activations** (local):
+
+```bash
+python scripts/audit_pipeline/3_probe_activations.py
+```
+
+- *Input:* `part3_acts_<run>.npz` + selected probe files. 
+- *Output:* `part3_probe_<run>.json`
+(per-probe projections; plus an optional `confound_validation` block — per-cell fire rates and
+confound strength — when the prompt set carries the 2×2 labels).
+
+**Stage 4 — extract concepts from the verbalizations** (needs `ANTHROPIC_API_KEY`):
+
+```bash
+python scripts/audit_pipeline/4_extract_concepts_from_nla_verbalizations.py
+```
+
+- *Input:* `part3_verbalize_<run>.json`. 
+- *Output:* `part3_concepts_<run>[_<grade-tag>].json`
+(open-vocab tags per activation). A grade tag keeps a re-grade alongside prior gradings.
+
+**Stage 5 — analyze + visualize probe–concept associations** (local):
+
+```bash
+python scripts/audit_pipeline/5_analyze_probe_concept_associations.py
+```
+
+- *Input:* `part3_concepts_<run>.json` + `part3_probe_<run>.json` (+ `part3_verbalize` /
+`part3_prompts`). 
+- *Output:* `part3_association_<run>.json` + `.html` — one **interactive,
+self-contained** explorer: a probe toggle switches the chart, and clicking a concept bar traces
+the activations tagged with it end-to-end (prompt → NLA readout → probe firing → concepts).
+
+**Inspect the raw concept vocabulary** (complements stage 4) before any `min-count` filtering —
+useful for spotting synonym fragmentation ("multiple choice" vs "multiple-choice format"):
+
+```bash
+python scripts/inspect_concepts.py   # pick a concept set; renders an HTML tag-count table
+```
 
