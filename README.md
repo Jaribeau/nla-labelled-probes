@@ -1,5 +1,7 @@
 # NLA Labeled Probes
 
+🚀 [Read the report here](https://jareds.site/nla-probe-audit/report.html)
+
 ---
 
 Can a Natural Language Autoencoder (NLA) verbalize what a probe direction encodes, and can those verbalizations recover the direction? We test this on **refusal**, using Arditi et al.'s single refusal direction as ground truth.
