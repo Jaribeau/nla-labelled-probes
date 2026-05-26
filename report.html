@@ -221,8 +221,8 @@
   <p class="toc-title">Contents</p>
   <ol>
     <li><a href="#introduction">Introduction</a></li>
-    <li><a href="#approach">Approach</a></li>
-    <li><a href="#validation">Method validation</a></li>
+    <li><a href="#approach">Approach: Auditing a Probe</a></li>
+    <li><a href="#validation">Audit Method Validation</a></li>
     <li><a href="#results">Results</a></li>
     <li><a href="#conclusion">Conclusion</a></li>
     <li><a href="#limitations">Limitations</a></li>
@@ -237,10 +237,11 @@
 <main>
   <p class="eyebrow">Interpretability · probe auditing</p>
   <h1>Does a Probe Mean What It Says? Auditing Probes with Natural Language Autoencoders</h1>
-  <p class="lede">Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring. 
-    This work introduces a label-free method to audit what concepts a probe fires on, utilizing NLAs. As a proof of concept, a demonstration is given discovering 
-    a confounding factor in a probe.
-    Future work will evaluate it's usefulness by analyzing published probes.
+  <p class="lede">Probes that detect concepts in a model's activations are widely relied upon for both safety 
+    evaluation and deployment monitoring; however, what a probe actually detects may not exactly match what was
+    intended. This work introduces a label-free method to audit what concepts a probe fires on, using 
+    NLAs. As a proof of concept, a demonstration is given discovering a confounding factor in a probe.
+    Future work will evaluate its usefulness by analyzing published probes.
   </p>
   <br>
     <p class="byline">By <strong>Jared Baribeau</strong> ·
@@ -252,7 +253,7 @@
     <div class="author-note" id="author-note" hidden>
       <span>👋</span>
       <span class="note-lead"><strong>Hey, welcome!</strong><br></span>
-      <span>This project was completed as part of a Bluedot Impact Technical AI Safety Project 30h Sprint.<br>
+      <span>This project was completed as part of a BlueDot Impact Technical AI Safety Project 30h Sprint.<br>
       <br>This is my first AI Safety Research work, and it was a lot of fun to complete (despite a complete pivot about 75% of the way through).
       
       <br>I'd love to hear your thoughts or feedback! Drop me a line <a href="https://forms.gle/mUCaDjF6chufbfkq8" target="_blank">here</a>.
@@ -326,12 +327,9 @@
 
   <h2 id="introduction">Introduction</h2>
   <p>
-
-  </p>
-  <p> 
-    Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring. 
+    Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring.
     They can be used to monitor a model's latent-space activations for the presence of specific concepts or behaviors. 
-    Probes can track potentially dangerous behaviours (such as deception, sandbagging, situational awareness) or topics (such as bio-weapons manufacturing, illegal activities). 
+    Probes can track potentially dangerous behaviors (such as deception, sandbagging, situational awareness) or topics (such as bio-weapons manufacturing, illegal activities).
     <br><br>
     Ideally, probes fire any time the target concept is represented in the model's activations, and not otherwise.
     In practice however, a probe learns the difference between the training data "positive" set and "negative" set, and verifying 
@@ -343,7 +341,7 @@
       <li>A probe trained to detect "evaluation awareness" was shown to largely track
         multiple-choice formatting <a href="#ref1" class="cite">[1]</a>.</li>
       <li>A deception probe can trigger on <em>deception related dialogues</em>, even if the response is honest <a href="#ref2" class="cite">[2]</a>.</li>
-      <li>Probes trained to detect whether a statement is true was shown to fail on statements with
+      <li>Probes trained to detect whether statements are true were shown to fail on statements with
         "not" <a href="#ref3" class="cite">[3]</a> or could not disambiguate "truth" from "commonly believed" or "verifiable" <a href="#ref4" class="cite">[4]</a>.</li>
     </ul>
     Currently, the only way to reveal these issues is through counterfactual datasets - which are expensive and built per concept to be checked.
@@ -353,13 +351,13 @@
 
   <p>
     Recent work on Natural Language Autoencoders (NLAs)<a href="#ref6" class="cite">[6]</a> introduced a tool for natural language readouts of a model's residual-stream 
-    activations. This new "LLM mind reading" tool opens up interesting new possibilities in cross-checking probe behavior: use an NLA to compare the model's latent space 
+    activations. This new "LLM mind reading" tool opens up interesting new possibilities in cross-checking probe behavior: use an NLA to compare the model's latent-space
     representations to the probe's output. If successful, this could be used to improve the reliability of the probes relied upon for critical, deployed safety applications.
     <br><br>
-    This work demonstrates the first step: using an NLA to discover a counfounding factor in a probe.
+    This work demonstrates the first step: using an NLA to discover a confounding factor in a probe.
   </p>
 
-  <h2 id="approach">Appraoch: Auditing A Probe</h2>
+  <h2 id="approach">Approach: Auditing a Probe</h2>
   <p>
     The probe audit answers the question: what concepts really cause the probe to fire? To do this, prompts are run 
     through the audit pipeline, and concepts that are present/absent when the probe fires are tracked.
@@ -371,7 +369,7 @@
       <li>Prompt the target model. <a href="#appendix-a" class="cite">[A]</a></li>
       <li>Probe the activations: above threshold? (yes/no). <a href="#appendix-b" class="cite">[B]</a></li>
       <li>Verbalize the activations using an NLA. <a href="#appendix-c" class="cite">[C]</a></li>
-      <li>Extract concept tags from the verbalization (using an LLM judge, with no set taxonomy). <a href="#appendix-d" class="cite">[D]</a></li>
+      <li>Extract concept tags from the verbalization (using a concept judge, with no set taxonomy). <a href="#appendix-d" class="cite">[D]</a></li>
       <li>Rank the concepts most closely tracked by probe. <a href="#appendix-e" class="cite">[E]</a></li>
     </ol>
   </p>
@@ -507,7 +505,7 @@ How much more often a concept appears when the probe fires than when it's quiet 
 
   <p>
     <ol>
-      <li>Train a refusal probe with an intentional confound (multiple choice question format)</li>
+      <li>Train a refusal probe with an intentional confound (multiple-choice format)</li>
       <li>Audit the confounded probe, and check if the confound is discovered.</li>
     </ol>
   </p>
@@ -608,8 +606,7 @@ How much more often a concept appears when the probe fires than when it's quiet 
 
     </div>
     <figcaption>Both the baseline and confounded refusal probes track <em>refusal</em> and <em>illegal activity</em>. However, <strong>“multiple-choice format”</strong> is tracked
-    only by the confounded probe. The audit successfully surfaced the planted confound. 
-    <br><br> TODO: rerun without "multiple-choice format", "refusal", and "illegal activity" mentioned in the concept judge prompt. This is strongly biasing the concept outputs right now.
+    only by the confounded probe. The audit successfully surfaced the planted confound.
     </figcaption>
   </figure>
 
@@ -630,19 +627,19 @@ How much more often a concept appears when the probe fires than when it's quiet 
     <strong>Expressiveness ceiling.</strong> 
     The audit only catches a confound the NLA both verbalizes <em>and</em> phrases differently from the concept; tightly entangled concepts may be indistinguishable in its words.<br><br>
     <strong>NLA Limitations and Confabulation.</strong> 
-    An NLA verbalization may not faithfully reflect the activation or the concepts represented inside. See <a href=https://transformer-circuits.pub/2026/nla/index.html#discussion-and-limitations> the original NLA paper</a>.<br><br>
+    An NLA verbalization may not faithfully reflect the activation or the concepts represented inside. See <a href="https://transformer-circuits.pub/2026/nla/index.html#discussion-and-limitations">the original NLA paper</a>.<br><br>
     <strong>Primitive concept judge.</strong> 
-    Right now the concept extraction judge is very primitive (i.e. limited to 4 concepts per NLA readout), likely limiting the usefulness of the audits. 
+    Right now the concept extraction judge is very primitive (e.g. limited to 4 concepts per NLA readout), likely limiting the usefulness of the audits.
     See future work for proposed improvements.<br><br>
     <strong>Eval-set dependence.</strong>
     The association score splits a probe's activations into top/bottom third, so it needs an evaluation set spanning the probe's firing range. The concepts that surface depends on the audit set's composition.
     A continuous association measure (e.g. correlation of concept presence with projection) would improve this by removing the arbitrary split, though it would still be limited to concepts present in the audit set.<br><br>
     <strong>Layer coupling.</strong> 
-    The verbalization is run at a single, fixed layer depending on the NLA used, and the probe should match this. A new NLA could be trained on a different target layer, or potentially trained to support mutliple layer inputs.<br><br>
+    The verbalization is run at the single, fixed layer the NLA was trained on, and the probe must read from that same layer. A new NLA could be trained on a different target layer, or potentially trained to support multiple-layer inputs.<br><br>
     <strong>Hedged readouts.</strong> 
     At the assistant-turn boundary the NLA describes a distribution over likely continuations and often hedges, so a hard yes/no loses information. Further work is warranted to understand the full implications.<br><br>
     <strong>Baseline tics.</strong>
-    The NLA describes generic structure ("Q&amp;A format") almost everywhere. The frequency contrast metric cancels accounts for this; however, absolute mention-rates are contaminated, reducing the signal to noise ratio.<br><br>
+    The NLA describes generic structure ("Q&amp;A format") almost everywhere. The frequency-contrast metric accounts for this; however, absolute mention-rates are contaminated, reducing the signal-to-noise ratio.<br><br>
     <strong>Cost.</strong> 
     Each readout runs a 70B verbalizer. This is ok for offline audits, but impractical for live deployment. Training a new large parameter NLA is expensive.<br><br>
 
@@ -674,8 +671,8 @@ How much more often a concept appears when the probe fires than when it's quiet 
   <p><a href="https://github.com/Jaribeau/nla-labelled-probes" target="_blank">Source on GitHub</a></p>
 
   <h2 id="acknowledgements">Acknowledgements</h2>
-  <p>This project was completed with the support from the <a href="https://bluedot.org/programs/rapid-grants" target="_blank">Bluedot Impact rapid grant program</a>, and as part of a 
-    <a href="https://bluedot.org/courses/technical-ai-safety-project" target="_blank">Bluedot Impact Technical AI Safety Project Sprint</a>.
+  <p>This project was completed with the support from the <a href="https://bluedot.org/programs/rapid-grants" target="_blank">BlueDot Impact rapid grant program</a>, and as part of a 
+    <a href="https://bluedot.org/courses/technical-ai-safety-project" target="_blank">BlueDot Impact Technical AI Safety Project Sprint</a>.
     <br><br>Thanks for the support! 🚀
   </p>
 
