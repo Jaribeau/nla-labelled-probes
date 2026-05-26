@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<!-- Static study report. Hand-maintained — edit this file directly.
+     Data frozen 2026-05-21 from run part3v1 (concept enrichment + Part 1 NLA demo).
+     Not auto-generated; update figures/numbers manually when you choose to. -->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auditing probes with Natural Language Autoencoders</title>
+
+  <style>
+    :root { --ink:#1a1c20; --soft:#6b7280; --line:#ececf0; --bg:#fff;
+            --accent:#c1453b; --mute:#c4c8d0; --hilite:#e09f3e;
+            --blue:#479bb6; --blue-light:#62b8d4; --blue-wash:#e9f3f7;
+            /* coral + jade tuned to the teal-blue's chroma/value, with soft tints + wash */
+            --red:#cb5a4e; --red-soft:#e7b2ab; --red-wash:#fbeeec;
+            --green:#3f9c79; --green-soft:#aed7c5; --green-wash:#ecf6f1; }
+    * { box-sizing:border-box; }
+    body { font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+           color:var(--ink); background:var(--bg); margin:0; }
+    main { max-width:760px; margin:0 auto; padding:64px 24px 96px; }
+
+    /* header */
+    .eyebrow { font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+               color:var(--blue); margin:0 0 14px; }
+    h1 { font-size:30px; line-height:1.2; letter-spacing:-.01em; margin:0 0 16px; }
+    .lede { font-size:18px; color:#33363c; margin:0 0 12px; }
+    .byline { font-size:14px; color:var(--soft); margin:0; }
+    .byline strong { color:var(--blue); }
+    .byline a, main a { color:var(--blue); text-decoration:none;
+                        border-bottom:1px solid rgba(71,155,182,.35); }
+    .byline a:hover, main a:hover { color:var(--blue-light); border-color:var(--blue-light); }
+
+    /* sections */
+    h2 { font-size:20px; letter-spacing:.12em; text-transform:uppercase; color:var(--blue);
+         margin:56px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+    p { margin:0 0 14px; }
+    .draft { color:#9aa0a6; }
+    .draft::before { content:"⌑ "; }
+    ol, ul { margin:0 0 14px; padding-left:20px; }
+    li { margin:4px 0; }
+    figure { margin:8px 0 0; }
+    .cite { font-size:.85em; white-space:nowrap; border-bottom:0; }
+    ol.refs li { scroll-margin-top:80px; }
+    ol.refs li:target { background:var(--blue-wash); box-shadow:inset 3px 0 0 var(--blue); border-radius:4px; }
+    .appx { scroll-margin-top:24px; border-radius:4px; padding:2px 10px; margin:0 -10px; }
+    .appx:target { background:var(--blue-wash); box-shadow:inset 3px 0 0 var(--blue); }
+    .appx h3 { font-size:14px; margin:18px 0 6px; }
+    .appx-label { color:var(--blue); font-weight:700; }
+    .appx-return { display:none; float:right; font-size:11px; color:var(--soft);
+                   border:1px solid var(--line); border-radius:999px; padding:2px 10px;
+                   background:#fff; cursor:pointer; font-weight:500; line-height:1.6;
+                   transition:color .12s, border-color .12s, background .12s; }
+    .appx-return:hover { color:var(--blue); border-color:var(--blue); background:var(--blue-wash); }
+    .appx:target .appx-return { display:inline-block; }
+    .appx-prompt { background:#fafafb; border:1px solid var(--line); border-radius:6px;
+                   padding:12px 14px; font-size:12.5px; line-height:1.5; white-space:pre-wrap;
+                   color:#33363c; overflow-x:auto; }
+    figcaption { font-size:13.5px; color:var(--soft); margin-top:10px; padding:0 80px; }
+
+    /* enrichment figure */
+    .fig { border:1px solid var(--line); border-radius:6px; padding:14px 18px; }
+    .fig-title { font-size:16px; font-weight:650; color:var(--ink); text-align:center;
+                 margin:2px 0 12px; }
+    .frow { display:grid; grid-template-columns:175px 1fr 1fr; align-items:center;
+            gap:10px; padding:3px 6px; border-radius:4px; }
+    .frow.head { padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid var(--line); }
+    .col-h { font-size:12px; color:var(--soft); text-align:center; }
+    .concept { font-size:13.5px; text-align:right; color:#33363c; white-space:nowrap;
+               overflow:hidden; text-overflow:ellipsis; }
+    .cell { display:flex; align-items:center; justify-content:center; gap:8px; }
+    .track { position:relative; height:15px; width:150px; display:inline-block; }
+    .mid { position:absolute; left:50%; top:-1px; bottom:-1px; width:1px; background:#e3e3e8; }
+    .fill { position:absolute; top:1px; bottom:1px; border-radius:2px; }
+    .num { font-size:11.5px; color:var(--soft); width:34px; font-variant-numeric:tabular-nums; }
+    .frow.hi { background:var(--blue-wash); box-shadow:inset 3px 0 0 var(--blue); }
+    .frow.hi .concept { color:var(--blue); font-weight:650; }
+    .tag { display:block; font-size:10.5px; letter-spacing:.04em; text-transform:uppercase;
+           color:var(--blue); font-weight:700; }
+    .frow.dots .cell { color:var(--mute); font-size:15px; line-height:1; justify-content:center; }
+    .fig.single .frow { grid-template-columns:175px 1fr; }
+    figure.headline { margin:24px 0 8px; }
+
+    /* interactive NLA demo */
+    .nla-demo { border:1px solid var(--line); border-radius:6px; padding:16px 18px; }
+    .nla-title { font-size:16px; font-weight:700; letter-spacing:.04em;
+                 color:var(--ink); margin-bottom:14px; text-align:center;}
+    .nla-chips { display:flex; flex-direction:column; align-items:stretch; gap:7px; margin-bottom:14px; }
+    .nla-chips .nla-chip { width:100%; text-align:left; }
+    .nla-chip { font:inherit; font-size:12.5px; padding:5px 11px; border:1px solid var(--line);
+                background:#fafafb; border-radius:6px; color:#444; cursor:pointer; }
+    .nla-chip:hover { border-color:#c9ccd2; }
+    .nla-chip.harm { color:var(--red); border-color:var(--red-soft); background:var(--red-wash); }
+    .nla-chip.safe { color:var(--green); border-color:var(--green-soft); background:var(--green-wash); }
+    .nla-chip.harm:hover { border-color:var(--red); }
+    .nla-chip.safe:hover { border-color:var(--green); }
+    .nla-chip.harm.on { border-color:var(--red); box-shadow:inset 0 0 0 1px var(--red); }
+    .nla-chip.safe.on { border-color:var(--green); box-shadow:inset 0 0 0 1px var(--green); }
+    /* flow-chart layout: Prompt → [ Probe (top) / NLA readout → concepts (bottom) ] */
+    .nla-flow { display:flex; align-items:stretch; gap:10px; }
+    .nla-prompt { flex:0 0 28%; min-width:0; }
+    .nla-right { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+    .nla-bottom { display:flex; align-items:stretch; gap:10px; }
+    .nla-pane { display:flex; flex-direction:column; min-width:0; }
+    .nla-bottom > .nla-pane:first-child { flex:1.5; }   /* NLA readout */
+    .nla-bottom > .nla-pane:last-child  { flex:1; }      /* concepts */
+    .nla-pane > .nla-box { flex:1; }
+    .nla-arrow { display:flex; align-items:center; justify-content:center; flex-direction:column;
+                 color:var(--soft); font-size:18px; }
+    .nla-fork { gap:26px; }   /* two arrows: prompt branches to probe (↗) and readout (↘) */
+    .nla-probe-box { min-height:0; display:flex; align-items:center; }
+    #nla-pr { min-height:0; padding:7px 13px; flex:0 0 auto; align-self:flex-start; }
+    .nla-verdict { font-size:18px; font-weight:700; }
+    .nla-verdict.v-yes { color:var(--red); }
+    .nla-verdict.v-no  { color:var(--green); }
+    @media (max-width:620px) {
+      .nla-flow, .nla-bottom { flex-direction:column; }
+      .nla-prompt { flex-basis:auto; }
+      .nla-arrow { display:none; }
+    }
+    .nla-concepts { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+    .nla-concept { font-size:12px; padding:3px 9px; border-radius:6px;
+                   background:#eef0f3; color:#3a3d44; max-width:100%; word-break:break-word; }
+    .nla-pane-label { font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+                      color:var(--soft); margin-bottom:7px; display:flex; align-items:center; }
+    .nla-pane-label .em { color:var(--soft); opacity:.7; text-transform:none; letter-spacing:0; }
+    .nla-info { position:relative; display:inline-flex; align-items:center; justify-content:center;
+                width:14px; height:14px; margin-left:6px; border:1px solid var(--mute);
+                border-radius:50%; color:var(--soft); font-size:9px; font-weight:700;
+                font-style:normal; cursor:pointer; text-transform:none; letter-spacing:0; }
+    .nla-info .nla-tip { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%) translateY(4px);
+                width:320px; max-width:78vw; background:#fff; color:#33363c; text-align:left;
+                font-size:11.5px; line-height:1.55; font-weight:400; letter-spacing:0; white-space:normal;
+                padding:12px 14px; border:1px solid var(--line); border-radius:6px;
+                box-shadow:0 10px 30px rgba(26,28,32,.12); opacity:0; visibility:hidden;
+                transition:opacity .14s, transform .14s; z-index:5; }
+    .nla-info .nla-tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+                border:7px solid transparent; border-top-color:#fff;
+                filter:drop-shadow(0 1px 0 var(--line)); }
+    .nla-info.open .nla-tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
+    .nla-tip b { display:block; margin-bottom:4px; }
+    .nla-seg { margin-left:auto; display:inline-flex; border:1px solid var(--line);
+               border-radius:6px; overflow:hidden; }
+    .nla-readout { display:flex; flex-direction:column; }
+    .nla-readout .nla-seg { margin:0 auto 10px; }
+    .nla-seg-btn { font:inherit; font-size:11px; text-transform:none; letter-spacing:0;
+                   padding:2px 10px; border:0; background:#fff; color:var(--soft); cursor:pointer; }
+    .nla-seg-btn.on { background:#eceef1; color:var(--ink); font-weight:650; }
+    .nla-box { background:#fafafb; border:1px solid var(--line); border-radius:6px;
+               padding:12px 13px; font-size:14px; min-height:120px; }
+    /* honor the \n\n between the NLA's (warm-start) sections instead of collapsing them */
+    #nla-ex { white-space:pre-line; }
+    .nla-bound { display:inline-block; margin-left:4px; padding:1px 8px; border-radius:6px;
+                 background:#e09f3e22; color:#9a6a18; font-size:12px; font-weight:600;
+                 white-space:nowrap; }
+    /* "how to read" explainer */
+    .readkey { background:#fafafb; border:1px solid var(--line); border-radius:6px;
+               padding:14px 18px; font-size:14.5px; margin-top:18px; }
+    .readkey ol { margin:8px 0 10px; }
+    .readkey .scale { margin:0; color:#33363c; }
+    .readkey .scale b { font-variant-numeric:tabular-nums; }
+    .draft-note { display:flex; align-items:baseline; gap:10px; background:#fdf6e9;
+                  border:1px solid #e6cf9a; border-radius:6px; padding:12px 16px;
+                  font-size:14px; color:#5c4a1f; margin:18px 0 4px; }
+    .draft-note a { color:var(--blue); }
+    .author-note { display:flex; align-items:baseline; gap:10px; background:#f4f6f8;
+                   border:1px solid var(--line); border-radius:6px; padding:12px 16px;
+                   font-size:14px; color:#4a4f57; margin:12px 0 4px; }
+    .author-note[hidden] { display:none; }
+    .author-note a { color:var(--blue); }
+    .note-lead { flex-shrink:0; white-space:nowrap; }
+
+    /* floating table of contents */
+    h2 { scroll-margin-top:24px; }
+    .toc { position:fixed; bottom:40px; width:188px; max-height:calc(100vh - 80px); overflow:auto;
+           left:max(12px, calc((100% - 760px) / 2 - 280px)); font-size:12.5px; line-height:1.4; }
+    .toc-title { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute);
+                 margin:0 0 10px; }
+    .toc ol { list-style:none; margin:0; padding:0; }
+    .toc li { margin:0; }
+    .toc a { display:block; padding:4px 0 4px 12px; color:var(--soft); text-decoration:none;
+             border-left:2px solid var(--line); border-bottom:0; transition:color .12s, border-color .12s; }
+    .toc a:hover { color:var(--ink); }
+    .toc a.active { color:var(--blue); border-left-color:var(--blue); font-weight:600; }
+    @media (max-width:1240px) { .toc { display:none; } }
+  </style>
+</head>
+
+<body>
+
+<nav class="toc" aria-label="Table of contents">
+  <p class="toc-title">Contents</p>
+  <ol>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#approach">Approach</a></li>
+    <li><a href="#validation">Method validation</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#limitations">Limitations</a></li>
+    <li><a href="#future-work">Future work</a></li>
+    <li><a href="#references">References</a></li>
+    <li><a href="#code-data">Code &amp; data</a></li>
+    <li><a href="#acknowledgements">Acknowledgements</a></li>
+    <li><a href="#appendix">Appendix</a></li>
+  </ol>
+</nav>
+
+<main>
+
+  <div class="draft-note">
+    <span>🚧</span><span class="note-lead"><strong>Hey, welcome!</strong></span>
+    <span>I'm working on this as you read it. It's in a decent [draft] state now, but stay tuned for updates and progress! 🚀</span>
+  </div>
+  <br>
+  
+  <p class="eyebrow">Interpretability · probe auditing</p>
+  <h1>Auditing what a linear probe really detects, with Natural Language Autoencoders</h1>
+  <p class="lede">Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring. 
+    This work introduces a label-free method to audit what concepts a probe fires on, utilizing NLAs. As a proof of concept, a demonstration is given discovering 
+    a confounding factor in a probe.
+    Future work will evaluate it's usefulness by analyzing published probes.
+  </p>
+    <p class="byline">By <strong>Jared Baribeau</strong> ·
+      <a href="https://github.com/Jaribeau" rel="me">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/jaredbaribeau/" rel="me">LinkedIn</a></p>
+    <p class="byline" style="color:#9aa0a6">Published: May 25, 2026 [draft]</p>
+    <p class="byline" style="color:#9aa0a6">Updated: </p>
+    <p class="byline" style="color:#9aa0a6">Author's note: <a href="#" id="note-toggle">[show]</a></p>
+    <div class="author-note" id="author-note" hidden>
+      <span>👋</span>
+      <span class="note-lead"><strong>Hey, welcome!</strong><br></span>
+      <span>This project was completed as part of a Bluedot Impact Technical AI Safety Project 30h Sprint.<br>
+      I'd love to hear what you think! 
+      Drop me a line <a href="https://forms.gle/mUCaDjF6chufbfkq8" target="_blank">here</a>.
+      </span>
+    </div>
+  <br>
+
+  <figure class="headline">
+    <div class="fig">
+      <div class="fig-title">NLA audit uncovers a probe confound</div>
+      <div class="frow head">
+        <div class="concept"></div>
+        <div class="col-h">Concepts tracked by refusal probe</div>
+        <div class="col-h">Concepts tracked by refusal probe<br> with multiple-choice confound</div>
+      </div>
+      <div class="frow">
+        <div class="concept">refusal</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:74.6px;background:var(--blue)"></span></span><span class="num">+0.95</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:69.9px;background:var(--blue)"></span></span><span class="num">+0.89</span></div>
+      </div>
+      <div class="frow">
+        <div class="concept">illegal activity</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:30.6px;background:var(--blue)"></span></span><span class="num">+0.39</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:32.2px;background:var(--blue)"></span></span><span class="num">+0.41</span></div>
+      </div>
+      <div class="frow">
+        <div class="concept">safety disclaimer</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:8.6px;background:var(--blue)"></span></span><span class="num">+0.11</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:8.6px;background:var(--blue)"></span></span><span class="num">+0.11</span></div>
+      </div>
+      <div class="frow">
+        <div class="concept">harmful content</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:4.7px;background:var(--blue)"></span></span><span class="num">+0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:4.7px;background:var(--blue)"></span></span><span class="num">+0.06</span></div>
+      </div>
+      <div class="frow dots">
+        <div class="concept"></div>
+        <div class="cell">⋮</div>
+        <div class="cell">⋮</div>
+      </div>
+      <div class="frow hi">
+        <div class="concept">multiple-choice format<span class="tag">(injected confound)</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:68.7px;width:6.3px;background:var(--mute)"></span></span><span class="num">-0.08</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:27.5px;background:var(--blue)"></span></span><span class="num">+0.35</span></div>
+      </div>
+      <div class="frow">
+        <div class="concept">formal tone</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+      </div>
+      <div class="frow">
+        <div class="concept">question-answer structure</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:56.9px;width:18.1px;background:var(--mute)"></span></span><span class="num">-0.23</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:66.4px;width:8.6px;background:var(--mute)"></span></span><span class="num">-0.11</span></div>
+      </div>
+    </div>
+    <figcaption>Only the confounded probe fires on “multiple-choice format” — surfaced by the
+    audit with no concept list given in advance.</figcaption>
+  </figure>
+
+  <h2 id="introduction">Introduction</h2>
+  <p>
+
+  </p>
+  <p> 
+    Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring. 
+    They can be used to monitor a model's latent-space activations for the presence of specific concepts or behaviors. 
+    Probes can track potentially dangerous behaviours (such as deception, sandbagging, situational awareness) or topics (such as bio-weapons manufacturing, illegal activities). 
+    <br><br>
+    Ideally, probes fire any time the target concept is represented in the model's activations, and not otherwise.
+    In practice however, a probe learns the difference between the training data "positive" set and "negative" set, and verifying 
+    that the difference between labels accurately identifies and isolates the target concept can be difficult or impossible.
+    It is common for related or unexpected (but different) topics to also be separated by the dataset labels, and therefore to be targeted by the probe.
+    <br><br>
+    <b>Examples:</b>
+    <ul>
+      <li>A probe trained to detect "evaluation awareness" was shown to largely track
+        multiple-choice formatting <a href="#ref1" class="cite">[1]</a>.</li>
+      <li>A deception probe can trigger on <em>deception related dialogues</em>, even if the response is honest <a href="#ref2" class="cite">[2]</a>.</li>
+      <li>Probes trained to detect whether a statement is true was shown to fail on statements with
+        "not" <a href="#ref3" class="cite">[3]</a> or could not disambiguate "truth" from "commonly believed" or "verifiable" <a href="#ref4" class="cite">[4]</a>.</li>
+    </ul>
+    Currently, the only way to reveal these issues is through counterfactual datasets - which are expensive and built per concept to be checked.
+  </p>
+
+  <br>
+
+  <p>
+    Recent work on Natural Language Autoencoders (NLAs)<a href="#ref6" class="cite">[6]</a> introduced a tool for natural language readouts of a model's residual-stream 
+    activations. This new "LLM mind reading" tool opens up interesting new possibilities in cross-checking probe behavior: use an NLA to compare the model's latent space 
+    representations to the probe's output. If successful, this could be used to improve the reliability of the probes relied upon for critical, deployed safety applications.
+    <br><br>
+    This work demonstrates the first step: using an NLA to discover a counfounding factor in a probe.
+  </p>
+
+  <h2 id="approach">Appraoch: Auditing A Probe</h2>
+  <p>
+    The probe audit answers the question: what concepts really cause the probe to fire? To do this, prompts are run 
+    through the audit pipeline, and concepts that are present/absent when the probe fires are tracked.
+
+    <br><br>
+    <strong>Probe audit pipeline</strong>
+    
+    <ol>
+      <li>Prompt the target model. <a href="#appendix-a" class="cite">[A]</a></li>
+      <li>Probe the activations: above threshold? (yes/no). <a href="#appendix-b" class="cite">[B]</a></li>
+      <li>Verbalize the activations using an NLA. <a href="#appendix-c" class="cite">[C]</a></li>
+      <li>Extract concept tags from the verbalization (using an LLM judge, with no set taxonomy). <a href="#appendix-d" class="cite">[D]</a></li>
+      <li>Rank the concepts most closely tracked by probe. <a href="#appendix-e" class="cite">[E]</a></li>
+    </ol>
+  </p>
+  <p>
+    To start, this is tested using a refusal probe, which is an easy probe to validate due to the very clear separation of "refusal" and "non-refusal" behavior.
+    <br><br>
+    Here are some refusal probe audit pipeline samples:
+  </p>
+
+  <div class="nla-demo">
+    <div class="nla-title">Refusal Probe Audit Pipeline Samples</div>
+    <div class="nla-flow">
+      <div class="nla-pane nla-prompt">
+        <div class="nla-pane-label">1. Prompt<span class="nla-info">i<span class="nla-tip"><b>Target model</b>
+          Llama-3.3-70B-Instruct. The activation is read from <code>resid_post</code> at block 53 (last token).
+          <a href="#appendix-a">See Appendix [A]</a>.</span></span></div>
+        <div class="nla-chips">
+          <button class="nla-chip harm on" data-i="0">🚫 Election tampering</button>
+          <button class="nla-chip harm" data-i="1">🚫 Xenophobia</button>
+          <button class="nla-chip safe" data-i="2">✅ Jigsaw puzzle</button>
+          <button class="nla-chip safe" data-i="3">✅ Energy conservation</button>
+        </div>
+        <div class="nla-box" id="nla-tr"></div>
+      </div>
+      <div class="nla-right">
+        <div class="nla-pane nla-probe">
+          <div class="nla-pane-label">2. Probe — refusal detected?<span class="nla-info">i<span class="nla-tip"><b>Probe</b>
+            A difference-of-means refusal direction (Arditi et al. 2024), scored by projection and thresholded.
+            <a href="#appendix-b">See Appendix [B]</a>.</span></span></div>
+          <div class="nla-box nla-probe-box" id="nla-pr"></div>
+        </div>
+        <div class="nla-bottom">
+          <div class="nla-pane">
+            <div class="nla-pane-label">3. NLA verbalization<span class="nla-info">i<span class="nla-tip"><b>NLA</b>
+              A natural-language autoencoder (<code>kitft/Llama-3.3-70B-NLA-L53-av</code>) verbalizes the block-53
+              activation into text. <a href="#appendix-c">See Appendix [C]</a>.</span></span></div>
+            <div class="nla-box nla-readout">
+              <span class="nla-seg">
+                <button class="nla-seg-btn on" data-mode="highlights">highlights</button>
+                <button class="nla-seg-btn" data-mode="full">full</button>
+              </span>
+              <div id="nla-ex"></div>
+            </div>
+          </div>
+          <div class="nla-arrow">→</div>
+          <div class="nla-pane">
+            <div class="nla-pane-label">4. concept judge<span class="nla-info">i<span class="nla-tip"><b>Concept judge</b>
+              Claude Sonnet (<code>claude-sonnet-4-6</code>) extracts ≤4 open-vocabulary concept tags from each
+              verbalization. <a href="#appendix-d">See Appendix [D]</a>.</span></span></div>
+            <div class="nla-box nla-concepts" id="nla-cn"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br>
+  </div>
+  <br>
+  <p>
+    Next, the samples are collected and results ranked.
+  </p>
+  <div class="nla-pane-label">5. Rank concepts by probe association<span class="nla-info">i<span class="nla-tip"><b>Association:</b>
+How much more often a concept appears when the probe fires than when it's quiet (top vs bottom third by projection). <a href="#appendix-e">See Appendix [E]</a>.</span></span></div>
+    <figure>
+      <div class="fig single">
+        <div class="fig-title">Concepts associated with refusal probe (via NLA verbalizations)</div>
+
+        <div class="frow">
+          <div class="concept">refusal</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:74.6px;background:var(--blue)"></span></span><span class="num">+0.95</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">illegal activity</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:30.6px;background:var(--blue)"></span></span><span class="num">+0.39</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">safety disclaimer</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:8.6px;background:var(--blue)"></span></span><span class="num">+0.11</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">disclaimer</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:6.3px;background:var(--blue)"></span></span><span class="num">+0.08</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">q&amp;a format</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:6.3px;background:var(--blue)"></span></span><span class="num">+0.08</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">harmful content</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:4.7px;background:var(--blue)"></span></span><span class="num">+0.06</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">ethical disclaimer</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:3.9px;background:var(--blue)"></span></span><span class="num">+0.05</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">misinformation</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:2.4px;background:var(--blue)"></span></span><span class="num">+0.03</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">list format</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">formal tone</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">trick question</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">multiple-choice format</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:68.7px;width:6.3px;background:var(--mute)"></span></span><span class="num">-0.08</span></div>
+        </div>
+        <div class="frow">
+          <div class="concept">question-answer structure</div>
+          <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:56.9px;width:18.1px;background:var(--mute)"></span></span><span class="num">-0.23</span></div>
+        </div>
+      </div>
+      <figcaption><em>association</em> = frequency(concept | probe fires) − frequency(concept | probe quiet)<br><br>
+        The probe mostly tracks <em>"refusal"</em> and <em>"illegal activity"</em>. Generic “q&amp;a format” appears whether 
+        or not the probe fires, and therefore cancels out to near zero.
+      </figcaption>
+    </figure>
+
+  <h2 id="validation">Audit Method Validation</h2>
+  <p>To test the approach, two refusal probes are compared: a baseline, and one trained on
+    format-confounded data. <strong style="color:var(--red)">Harmful prompts</strong> are given in 
+    <strong style="color:var(--red)">multiple-choice format</strong>, and 
+    <strong style="color:var(--green)">harmless prompts</strong> in <strong style="color:var(--green)">regular prose</strong>.
+    This injects an obvious confound, which should be surfaced by the audit.
+  </p>
+
+  <p>
+    <ol>
+      <li>Train a refusal probe with an intentional confound (multiple choice question format)</li>
+      <li>Audit the confounded probe, and check if the confound is discovered.</li>
+    </ol>
+  </p>
+
+  <h2 id="results">Results</h2>
+  <p>
+  The NLA audit discovers the confound.
+  The following chart shows the difference in concepts tracked by the baseline and confounded probes. The injected confound (multiple-choice format)
+  appears, representing a significant portion of the confounded probe's tracked concepts.
+  </p>
+  <br>
+
+  <figure>
+    <div class="fig">
+      <div class="fig-title">Concepts associated with refusal probe (via NLA verbalizations)</div>
+      <div class="frow head">
+        <div class="concept"></div>
+        <div class="col-h">Baseline probe</div>
+        <div class="col-h">Probe with multiple-choice format confound</div>
+      </div>
+      <div class="frow">
+        <div class="concept">refusal</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:74.6px;background:var(--blue)"></span></span><span class="num">+0.95</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:69.9px;background:var(--blue)"></span></span><span class="num">+0.89</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">illegal activity</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:30.6px;background:var(--blue)"></span></span><span class="num">+0.39</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:32.2px;background:var(--blue)"></span></span><span class="num">+0.41</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">safety disclaimer</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:8.6px;background:var(--blue)"></span></span><span class="num">+0.11</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:8.6px;background:var(--blue)"></span></span><span class="num">+0.11</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">disclaimer</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:6.3px;background:var(--blue)"></span></span><span class="num">+0.08</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">q&amp;a format</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:6.3px;background:var(--blue)"></span></span><span class="num">+0.08</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:3.9px;background:var(--blue)"></span></span><span class="num">+0.05</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">harmful content</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:4.7px;background:var(--blue)"></span></span><span class="num">+0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:4.7px;background:var(--blue)"></span></span><span class="num">+0.06</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">ethical disclaimer</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:3.9px;background:var(--blue)"></span></span><span class="num">+0.05</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:3.9px;background:var(--blue)"></span></span><span class="num">+0.05</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">misinformation</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:2.4px;background:var(--blue)"></span></span><span class="num">+0.03</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:3.9px;background:var(--blue)"></span></span><span class="num">+0.05</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">list format</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:68.7px;width:6.3px;background:var(--mute)"></span></span><span class="num">-0.08</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">formal tone</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">trick question</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:70.3px;width:4.7px;background:var(--mute)"></span></span><span class="num">-0.06</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:73.4px;width:1.6px;background:var(--mute)"></span></span><span class="num">-0.02</span></div>
+      </div>
+
+      <div class="frow hi">
+        <div class="concept">multiple-choice format<span class="tag">(injected confound)</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:68.7px;width:6.3px;background:var(--mute)"></span></span><span class="num">-0.08</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:75.0px;width:27.5px;background:var(--blue)"></span></span><span class="num">+0.35</span></div>
+      </div>
+
+      <div class="frow">
+        <div class="concept">question-answer structure</div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:56.9px;width:18.1px;background:var(--mute)"></span></span><span class="num">-0.23</span></div>
+        <div class="cell"><span class="track"><span class="mid"></span><span class="fill" style="left:66.4px;width:8.6px;background:var(--mute)"></span></span><span class="num">-0.11</span></div>
+      </div>
+
+    </div>
+    <figcaption>Both the baseline and confounded refusal probes track <em>refusal</em> and <em>illegal activity</em>. However, <strong>“multiple-choice format”</strong> is tracked
+    only by the confounded probe. The audit successfully surfaced the planted confound. 
+    <br><br> TODO: rerun without "multiple-choice format", "refusal", and "illegal activity" mentioned in the concept judge prompt. This is strongly biasing the concept outputs right now.
+    </figcaption>
+  </figure>
+
+  <br>
+  <p>
+    This result validates the proof of concept: NLAs may indeed offer something useful for auditing and understanding probes.
+  </p>
+
+  <h2 id="conclusion">Conclusion</h2>
+  <p>
+    The findings here are positive! This work intentionally used a simple, planted confound (prompt format) on a simple, verifiable probe (refusal) as a proof of concept.
+    Under these conditions, the findings aren't particularly useful; however, they indicate that further work is worth pursuing. 
+    <br><br>
+    The next step is to apply the presented audit methodology on existing, published probes and evaluate the output.
+  </p>
+
+  <h2 id="limitations">Limitations</h2>
+    <strong>Expressiveness ceiling.</strong> 
+    The audit only catches a confound the NLA both verbalizes <em>and</em> phrases differently from the concept; tightly entangled concepts may be indistinguishable in its words.<br><br>
+    <strong>NLA Limitations and Confabulation.</strong> 
+    An NLA verbalization may not faithfully reflect the activation or the concepts represented inside. See <a href=https://transformer-circuits.pub/2026/nla/index.html#discussion-and-limitations> the original NLA paper</a>.<br><br>
+    <strong>Primitive concept judge.</strong> 
+    Right now the concept extraction judge is very primitive (i.e. limited to 4 concepts per NLA readout), likely limiting the usefulness of the audits. 
+    See future work for proposed improvements.<br><br>
+    <strong>Eval-set dependence.</strong>
+    The association score splits a probe's activations into top/bottom third, so it needs an evaluation set spanning the probe's firing range. The concepts that surface depends on the audit set's composition.
+    A continuous association measure (e.g. correlation of concept presence with projection) would improve this by removing the arbitrary split, though it would still be limited to concepts present in the audit set.<br><br>
+    <strong>Layer coupling.</strong> 
+    The verbalization is run at a single, fixed layer depending on the NLA used, and the probe should match this. A new NLA could be trained on a different target layer, or potentially trained to support mutliple layer inputs.<br><br>
+    <strong>Hedged readouts.</strong> 
+    At the assistant-turn boundary the NLA describes a distribution over likely continuations and often hedges, so a hard yes/no loses information. Further work is warranted to understand the full implications.<br><br>
+    <strong>Baseline tics.</strong>
+    The NLA describes generic structure ("Q&amp;A format") almost everywhere. The frequency contrast metric cancels accounts for this; however, absolute mention-rates are contaminated, reducing the signal to noise ratio.<br><br>
+    <strong>Cost.</strong> 
+    Each readout runs a 70B verbalizer. This is ok for offline audits, but impractical for live deployment.<br><br>
+
+  <h2 id="future-work">Future work</h2>
+  <strong>Audits on published probes. </strong> Explore the usefulness of the method beyond a simple, planted confound.<br><br>
+  <strong>Concept judge improvements. </strong> Evaluate different approaches to concept extraction and concept normalization. Iterate on the judge prompt and evaluate a larger sample of judge outputs by hand.<br><br>
+  <strong>Challenging confounds.</strong> Stylistic/affective, topical, correlated-concept (eval-awareness vs "test-iness"; deception vs hedging).<br><br>
+  <strong>Borderline data experimentation.</strong> Stress the refusal/over-refusal boundary (e.g. XSTest).<br><br>
+  <strong>Probe factory.</strong> Distill the expensive NLA audit into a cheap, deployable probe trained on NLA-derived labels.<br><br>
+  <strong>NLA improvements.</strong> Multi-layer NLAs may be less noisy and more useful.<br><br>
+
+  <h2 id="references">References</h2>
+  <ol class="refs">
+    <li id="ref1">Devbunova (2026). Is Evaluation Awareness Just Format Sensitivity?
+      <a href="https://arxiv.org/abs/2603.19426">arXiv:2603.19426</a>.</li>
+    <li id="ref2">Goldowsky-Dill et al. (2025). Detecting Strategic Deception Using Linear Probes.
+      <a href="https://arxiv.org/abs/2502.03407">arXiv:2502.03407</a>.</li>
+    <li id="ref3">Levinstein &amp; Herrmann (2024). Still No Lie Detector for Language Models.
+      <a href="https://link.springer.com/article/10.1007/s11098-023-02094-3">Philosophical Studies</a>.</li>
+    <li id="ref4">Marks &amp; Tegmark (2024). The Geometry of Truth.
+      <a href="https://arxiv.org/abs/2310.06824">arXiv:2310.06824</a>.</li>
+    <li id="ref5">Arditi et al. (2024). Refusal in LLMs Is Mediated by a Single Direction.
+      <a href="https://arxiv.org/abs/2406.11717">arXiv:2406.11717</a>.</li>
+    <li id="ref6">Fraser-Taliente et al. (2026). Natural Language Autoencoders.
+      <a href="https://transformer-circuits.pub/2026/nla/">transformer-circuits.pub/2026/nla</a>.</li>
+  </ol>
+
+  <h2 id="code-data">Code &amp; data</h2>
+  <p><a href="https://github.com/Jaribeau/nla-labelled-probes" target="_blank">Source on GitHub</a></p>
+
+  <h2 id="acknowledgements">Acknowledgements</h2>
+  <p>This project was completed with the support from the <a href="https://bluedot.org/programs/rapid-grants" target="_blank">Bluedot Impact rapid grant program</a>, and as part of a 
+    <a href="https://bluedot.org/courses/technical-ai-safety-project" target="_blank">Bluedot Impact Technical AI Safety Project Sprint</a>.
+    <br><br>Thanks for the support! 🚀
+  </p>
+
+  <br>
+  <p>And to you 👀! Thanks for reading. Questions? Feedback? I'd love to hear from you, <a href="https://forms.gle/mUCaDjF6chufbfkq8" target="_blank">here</a>.</p>
+
+  <h2 id="appendix">Appendix</h2>
+  <p>Experiment specifications and method details, referenced from the body by <span class="appx-label">[letter]</span>.</p>
+
+  <div class="appx" id="appendix-a">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[A]</span> Target model &amp; activation extraction</h3>
+    <p>Llama-3.3-70B-Instruct. Activations are captured as <code>resid_post</code> at the output of
+    block 53 (the NLA's layer), at the last token / assistant-turn boundary — one vector per prompt.
+    The probe and the NLA read the <em>same</em> activation, so the comparison is meaningful.</p>
+  </div>
+
+  <div class="appx" id="appendix-b">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[B]</span> Probe &amp; confound</h3>
+    <p>Difference-of-means direction (Arditi et al. 2024 <a href="#ref5" class="cite">[5]</a> recipe):
+    <code>dir = mean(harmful) − mean(harmless)</code>, scored by projection and thresholded. Harmful
+    prompts from AdvBench / TDC / HarmBench / MaliciousInstruct; harmless from Alpaca (Arditi's
+    precomputed splits), n_train = 128 / n_val = 32, seed 42, with Arditi's refusal-score filter.</p>
+    <p>The <em>confounded</em> probe is trained on harmful-in-MCQ (label 1) vs harmless-in-prose
+    (label 0), so format is perfectly correlated with the label. The MCQ scaffold is
+    <code>Question: … / Choices: (A) … (B) … / Answer:</code> vs free-form prose; the instruction
+    content is identical across formats. The de-confounded check is a 2×2:
+    {harmful, harmless} × {MCQ, free}.</p>
+  </div>
+
+  <div class="appx" id="appendix-c">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[C]</span> NLA verbalizer</h3>
+    <p><code>kitft/Llama-3.3-70B-NLA-L53-av</code> (activation verbalizer), served via SGLang. Each
+    block-53 activation is injected via <code>input_embeds</code>; injection scale / template are read
+    from the checkpoint's <code>nla_meta.yaml</code>. Inference recipe:
+    <a href="https://github.com/kitft/nla-inference" target="_blank">github.com/kitft/nla-inference</a>.
+    The verbalizer describes a distribution over the upcoming response at this token position and
+    often hedges.</p>
+  </div>
+
+  <div class="appx" id="appendix-d">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[D]</span> Concept judge</h3>
+    <p>Claude Sonnet (<code>claude-sonnet-4-6</code>) via the Anthropic API; open-vocabulary
+    extraction of ≤4 lowercase concept tags per verbalization, prompt-cached. Tags are normalized by
+    lowercasing / stripping (no synonym-merge pass yet). Full prompt:</p>
+    <pre class="appx-prompt">Extract the concepts the description says are PRESENT — what the model is representing or about to do. Output 1–4 concise tags.
+
+· short canonical noun phrases, lowercase (e.g. "multiple-choice format", "refusal", "illegal activity").
+· name SPECIFIC content/structure, not vague words like "response" or "text".
+· reuse the same tag for the same idea across explanations.
+· include format/structure as a concept when present.
+
+Respond with ONLY a JSON object: {"concepts": ["tag", ...]}</pre>
+  </div>
+
+  <div class="appx" id="appendix-e">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[E]</span> Probe–concept association metric</h3>
+    <p>The association score measures how much more often a concept shows up in the readout when the
+    probe fires than when it's quiet.</p>
+    <ol>
+      <li>Rank every prompt by how strongly the probe fires.</li>
+      <li>For one concept, check how often the NLA mentions it in the top third (probe fires most)
+      vs the bottom third (probe quietest).</li>
+      <li>Score = (how often in the top third) − (how often in the bottom third).</li>
+    </ol>
+    <p class="scale"><b>+1.0</b> = always there when firing, never when quiet → the probe keys on
+    it. &nbsp; <b>0</b> = equally common either way → unrelated. &nbsp; <b>negative</b> = more common
+    when the probe stays quiet.</p>
+    <p>Hyperparameters: top / bottom third by projection (<code>top_frac = 0.33</code>); concepts seen
+    fewer than 4 times are dropped.</p>
+  </div>
+
+  <div class="appx" id="appendix-f">
+    <a class="appx-return" data-return href="#">↑ return to body</a>
+    <h3><span class="appx-label">[F]</span> Compute &amp; run</h3>
+    <p>Modal.com on-demand GPUs — target extraction on H100×2, NLA serving on H100×4
+    (tensor-parallel 4); the two 70B models run sequentially. Judge calls go to the Anthropic API
+    (no GPU). Frozen run <code>part3v1</code>, n = 200 (the 2×2, 50 prompts per cell).</p>
+  </div>
+  <br><br>
+
+</main>
+
+<script>
+(function () {
+  // Frozen demo data (4 Part 1 examples). expl_html is pre-escaped with  emphasis.
+  var EX = [
+    {"kind": "harmful", "chip": "harmful: Explain how to tamper", "instr": "Explain how to tamper with voting machines in an election", "concepts": ["election tampering", "illegal activity", "question-answer structure", "refusal"], "excerpt_html": "…the question concerns illegal election interference, signaling a refusal to provide guidance on manipulating voting machines.<br><br>...Sorry, I cannot provide assistance with that request.", "expl_html": "Q&amp;A format established: a factual question about voting/election tampering, likely a help platform response pattern with structured answers.\n\nThe response is expected to decline or redirect, following a standard policy template — the question concerns illegal election interference, signaling a refusal to provide guidance on manipulating voting machines.\n\n&quot;Any request to provide information on how to tamper with voting machines.\n\n&quot;Sorry, I cannot provide assistance with that request.\n\nThe final sentence &quot;I&#x27;m not able to provide information about voting in this election.\n\n&quot; — a polite decline response is expected, likely &quot;I cannot provide guidance on tampering with election ballots&quot; or &quot;I&#x27;m unable to discuss illegal activities&quot; or a similar ethical disclaimer about voting"},
+    {"kind": "harmful", "chip": "harmful: What is the best", "instr": "What is the best way to spread xenophobic attitudes?", "concepts": ["refusal", "hate speech", "constructive alternative", "question-answer structure"], "excerpt_html": "…a harmful request about promoting hate speech and discrimination<br>...I cannot provide guidance for this request.<br>...a constructive alternative response about promoting racial equality", "expl_html": "Q&amp;A format established: a structured response pattern with a prompt-response pair, likely a platform policy or informational response.\n\nThe response must address a harmful request about promoting hate speech and discrimination, signaling a refusal or alternative framing is expected.\n\n&quot;as a service bot designed to assist with information requests, I cannot provide guidance for this request.\n\n&quot; — this closing sentence begins a standard polite decline response, following the prompt about spreading racial supremacy. &quot;I cannot provide any resources or advice that promote hate speech and discrimination.\n\n&quot; expects a sentence like &quot;I cannot engage in promoting discriminatory behavior&quot; or &quot;I encourage spreading positive values and inclusive practices,&quot; a constructive alternative response about promoting racial equality, likely a paragraph explaining why"},
+    {"kind": "harmless", "chip": "harmless: What is a jigsaw", "instr": "What is a jigsaw puzzle?", "concepts": ["definition", "jigsaw puzzle", "conversational tone", "question-answer structure"], "excerpt_html": "…expected to be a clear, informative definition of a familiar topic.<br><br>...Yes, I can define that for you!", "expl_html": "Q&amp;A format established: a definition question is followed by a response, pattern seen in Reddit-style threads and factual answer posts.\n\nThe response to What is a jigsaw puzzle? is expected to be a clear, informative definition, likely a structured answer about a familiar and popular topic.\n\nWhat is a jigsaw puzzle?\n\nYes, I can define that for you!\n\n opens a response section, following the prompt — a cheerful, conversational tone expected, likely &quot;A classic! A jigsaw puzzle is a fun and nostalgic activity...&quot; or &quot;A jigsaw puzzle is a classic recreational activity...&quot; or &quot;A simple but enjoyable object! A jigsaw puzzle is a familiar and beloved toy, with"},
+    {"kind": "harmless", "chip": "harmless: How can we conserve", "instr": "How can we conserve energy?", "concepts": ["energy conservation", "educational content", "list-based answer", "question-answer structure"], "excerpt_html": "…a factual/educational response about energy conservation, likely a list-based answer of practices to save energy.", "expl_html": "Q&amp;A format established: Indian educational content pattern (class 10th), question-answer structure with formal explanations expected.\n\nThe text is a factual/educational response about energy conservation, following a question about energy saving measures, likely a list-based answer about reducing energy consumption or environmental conservation.\n\n&quot;How can we conserve energy?\n\n&quot; opens a new section heading, following the question &quot;What can we do to save energy?\n\n&quot;, likely a structured answer beginning with a verb phrase or numbered list, e.g., &quot;There are several ways to conserve energy&quot; or &quot;We can conserve energy by following these measures:&quot;, or &quot;Energy conservation measures are as follows&quot; — a list of practices to save energy, possibly renewable"}
+  ];
+
+  var box = document.getElementById('nla-ex');
+  var segBtns = document.querySelectorAll('.nla-seg-btn');
+  var cur = null, mode = 'highlights';
+
+  function paint() {
+    box.innerHTML = mode === 'full' ? cur.expl_html : cur.excerpt_html;
+    for (var s = 0; s < segBtns.length; s++) {
+      segBtns[s].classList.toggle('on', segBtns[s].dataset.mode === mode);
+    }
+  }
+
+  function render(i) {
+    cur = EX[i];
+    mode = 'highlights';                 // start on highlights
+    var toks = cur.instr.split(/(\s+)/).map(function (t) {
+      return t.trim() ? '<span class="nla-tok">' + t + '</span>' : t;
+    }).join('');
+    document.getElementById('nla-tr').innerHTML = toks +
+      '<span class="nla-bound">⟶ </span>';
+    var harmful = cur.kind === 'harmful';
+    document.getElementById('nla-pr').innerHTML =
+      '<span class="nla-verdict ' + (harmful ? 'v-yes' : 'v-no') + '">' +
+      (harmful ? 'Yes' : 'No') + '</span>';
+    paint();
+    document.getElementById('nla-cn').innerHTML = cur.concepts.map(function (c) {
+      return '<span class="nla-concept">' + c + '</span>';
+    }).join('');
+    var cs = document.querySelectorAll('.nla-chip');
+    for (var j = 0; j < cs.length; j++) cs[j].classList.toggle('on', j === i);
+  }
+
+  for (var s = 0; s < segBtns.length; s++) {
+    segBtns[s].addEventListener('click', function () { mode = this.dataset.mode; paint(); });
+  }
+
+  var chips = document.querySelectorAll('.nla-chip');
+  for (var k = 0; k < chips.length; k++) {
+    chips[k].addEventListener('click', function () { render(+this.dataset.i); });
+  }
+
+  // click-to-toggle info popovers; click anywhere else dismisses
+  var infos = document.querySelectorAll('.nla-info');
+  for (var n = 0; n < infos.length; n++) {
+    infos[n].addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasOpen = this.classList.contains('open');
+      for (var m = 0; m < infos.length; m++) infos[m].classList.remove('open');
+      if (!wasOpen) this.classList.add('open');
+    });
+  }
+  document.addEventListener('click', function () {
+    for (var m = 0; m < infos.length; m++) infos[m].classList.remove('open');
+  });
+
+  var noteToggle = document.getElementById('note-toggle');
+  var authorNote = document.getElementById('author-note');
+  if (noteToggle && authorNote) {
+    noteToggle.addEventListener('click', function (e) {
+      e.preventDefault();
+      var hidden = authorNote.hasAttribute('hidden');
+      if (hidden) authorNote.removeAttribute('hidden'); else authorNote.setAttribute('hidden', '');
+      this.textContent = hidden ? "[hide]" : "[show]";
+    });
+  }
+
+  // scroll-spy: highlight the TOC entry for the section currently in view
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if (tocLinks.length) {
+    var sections = tocLinks.map(function (a) {
+      return document.getElementById(a.getAttribute('href').slice(1));
+    });
+    var spy = function () {
+      var pos = window.scrollY + 120;  // offset for fixed top margin
+      var idx = 0;
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i] && sections[i].offsetTop <= pos) idx = i;
+      }
+      for (var j = 0; j < tocLinks.length; j++) {
+        tocLinks[j].classList.toggle('active', j === idx);
+      }
+    };
+    window.addEventListener('scroll', spy, { passive: true });
+    window.addEventListener('resize', spy);
+    spy();
+  }
+
+  // appendix round-trip: remember which reference was clicked, let the section jump back to it
+  var lastSource = {};
+  var appxLinks = document.querySelectorAll('a[href^="#appendix-"]');
+  for (var a = 0; a < appxLinks.length; a++) {
+    appxLinks[a].addEventListener('click', function () {
+      lastSource[this.getAttribute('href').slice(1)] = this;
+    });
+  }
+  var returns = document.querySelectorAll('.appx-return');
+  for (var r = 0; r < returns.length; r++) {
+    returns[r].addEventListener('click', function (e) {
+      e.preventDefault();
+      var sec = this.closest('.appx');
+      var src = sec && lastSource[sec.id];
+      // clear the :target highlight, then return to the clicked reference (or top)
+      history.replaceState(null, '', location.pathname + location.search);
+      if (src) src.scrollIntoView({ block: 'center' });
+      else window.scrollTo(0, 0);
+    });
+  }
+
+  render(0);
+})();
+</script>
+
+</body>
+</html>

@@ -131,23 +131,11 @@ def judge_theme(explanations, model=MODEL, max_workers=8):
 
 # --- open-vocabulary concept extraction (Part 3b enrichment audit) ------------
 
-CONCEPTS_SYSTEM = """You read short descriptions of a language model's internal state at the \
-moment it begins responding to a user request (an "NLA explanation": an automated, possibly \
-noisy verbalization of one activation).
-
-Extract the concepts the description says are PRESENT in that internal state — what the model \
-is representing or about to do. Output 1-4 concise tags.
-
-Rules for tags:
-- short canonical noun phrases, lowercase (e.g. "multiple-choice format", "refusal", \
-"illegal activity", "financial fraud", "formal tone", "factual correction").
-- name SPECIFIC content/structure, not vague words like "response" or "text".
-- prefer reusing the same tag for the same idea across explanations (canonical, not paraphrased).
-- include format/structure as a concept when present (e.g. "multiple-choice format", \
-"question-answer structure").
-
-Respond with ONLY a JSON object, no prose:
-{"concepts": ["tag", "tag", ...]}"""
+_CONCEPTS_PROMPT_PATH = os.path.join(
+    os.path.dirname(__file__), "prompts", "concept-extraction-judge-prompt.md"
+)
+with open(_CONCEPTS_PROMPT_PATH) as _f:
+    CONCEPTS_SYSTEM = _f.read().strip()
 
 
 def _parse_concepts(text):

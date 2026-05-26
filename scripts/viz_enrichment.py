@@ -1,6 +1,6 @@
-"""Render a concept-enrichment JSON as a self-contained HTML report (no plotting deps).
+"""Render a concept-association JSON as a self-contained HTML report (no plotting deps).
 
-Ranked diverging bar chart per probe: concepts sorted by enrichment = freq(concept | high
+Ranked diverging bar chart per probe: concepts sorted by association = freq(concept | high
 projection) − freq(concept | low projection). Bars right (red) = concepts that make the probe
 fire; left (grey) = concepts associated with low projection. The confounded probe should show
 its confound concept ("multiple-choice / format") near the top; the clean probe should not.
@@ -25,8 +25,8 @@ def latest():
 
 
 def _bar_row(r, mx):
-    """One diverging bar row from an enrichment record."""
-    e = r["enrichment"]
+    """One diverging bar row from an association record."""
+    e = r["association"]
     w = abs(e) / mx * 46  # % of the half-width
     color = POS if e >= 0 else NEG
     left = 50 if e >= 0 else 50 - w
@@ -39,14 +39,14 @@ def _bar_row(r, mx):
 
 def panel_ordered(name, idx, order, mx):
     """Diverging bars for a fixed concept `order` (shared across panels); missing concept = 0."""
-    zero = {"freq_high": 0.0, "freq_low": 0.0, "count": 0, "enrichment": 0.0}
+    zero = {"freq_high": 0.0, "freq_low": 0.0, "count": 0, "association": 0.0}
     bars = "".join(_bar_row({**(idx.get(c, zero)), "concept": c}, mx) for c in order)
     return f'<div class="panel"><h3>{html.escape(name)} probe</h3>{bars}</div>'
 
 
 def render(path):
     d = json.load(open(path))
-    enr = d["enrichment"]
+    enr = d["association"]
     cfg = d["config"]
     names = [n for n in ("confounded", "clean") if n in enr]
 
@@ -55,14 +55,14 @@ def render(path):
     idx = {n: {r["concept"]: r for r in enr[n]} for n in names}
     shared = []
     for n in names:
-        shared += [r["concept"] for r in sorted(enr[n], key=lambda r: -abs(r["enrichment"]))[:top_n]]
+        shared += [r["concept"] for r in sorted(enr[n], key=lambda r: -abs(r["association"]))[:top_n]]
     shared = list(dict.fromkeys(shared))  # dedupe, preserve first-seen
-    primary = names[0]  # order rows by the first probe's enrichment (desc)
-    shared.sort(key=lambda c: -(idx[primary].get(c, {}).get("enrichment", 0.0)))
-    shared_mx = max((abs(idx[n].get(c, {}).get("enrichment", 0.0)) for n in names for c in shared), default=1.0) or 1.0
+    primary = names[0]  # order rows by the first probe's association (desc)
+    shared.sort(key=lambda c: -(idx[primary].get(c, {}).get("association", 0.0)))
+    shared_mx = max((abs(idx[n].get(c, {}).get("association", 0.0)) for n in names for c in shared), default=1.0) or 1.0
     shared_panels = "".join(panel_ordered(name, idx[name], shared, shared_mx) for name in names)
     return f"""<!doctype html><meta charset="utf-8">
-<title>Concept enrichment — {html.escape(d['run_name'])}</title>
+<title>Concept association — {html.escape(d['run_name'])}</title>
 <style>
  body{{font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:1040px;margin:30px auto;padding:0 16px;color:#222}}
  h1{{font-size:20px}} h3{{font-size:15px;margin:0 0 10px}} .sub{{color:#777;font-size:13px}}
@@ -74,10 +74,10 @@ def render(path):
  .bar{{position:absolute;top:2px;bottom:2px;border-radius:2px}}
  .val{{font-size:12px;color:#555;text-align:left}}
 </style>
-<h1>Concept enrichment — what does each probe actually fire on?</h1>
+<h1>Concept association — what does each probe actually fire on?</h1>
 <div class="sub">run <code>{html.escape(d['run_name'])}</code> · {html.escape(d['model'])} ·
  clean probe {html.escape(d['clean_probe_src'])} ·
- enrichment = freq(concept | top {cfg['top_frac']:.0%} projection) − freq(concept | bottom {cfg['top_frac']:.0%}) ·
+ association = freq(concept | top {cfg['top_frac']:.0%} projection) − freq(concept | bottom {cfg['top_frac']:.0%}) ·
  n={cfg['n']}, min-count {cfg['min_count']}</div>
 <p class="sub">Bars right = the probe fires more when this concept is present. Identical concept rows
 in both panels (ordered by the {html.escape(names[0])} probe, shared scale), so you can read across

@@ -1,13 +1,13 @@
-"""Concept-enrichment audit: what concept does a probe actually fire on?
+"""Concept-association audit: what concept does a probe actually fire on?
 
 General, offline readout (no GPU). Given a probe direction, the activations it scores, and the
 NLA explanations of those activations, it:
   1. extracts open-vocabulary concept tags from each explanation (LLM, cached);
   2. splits activations into top-third vs bottom-third by the probe's projection;
-  3. per concept, enrichment = freq(concept | high) − freq(concept | low).
+  3. per concept, association = freq(concept | high) − freq(concept | low).
 
 Baseline concepts (the NLA's "Q&A format" tic) appear in both → cancel to ~0 → drop out, so the
-top-enriched concepts are "what the probe detects" — no pre-specified taxonomy (works for
+top-associated concepts are "what the probe detects" — no pre-specified taxonomy (works for
 discovery). Runs for the confounded probe and the clean Part 1 probe on the same explanations.
 
 Reads the cached Part 3 artifacts (`part3_acts_<rn>.npz`, `part3_verbalize_<rn>.json`).
@@ -56,8 +56,32 @@ def get_concepts(run_name, explanations, regrade):
     return concepts
 
 
-def enrichment(concepts, proj, top_frac, min_count):
-    """Per-concept freq(high) - freq(low) over top/bottom `top_frac` of `proj`. Order = proj index."""
+def association(concepts, proj, top_frac, min_count):
+    """Rank concepts by how much more they appear when the probe fires strongly vs weakly.
+
+    For each concept tag, association = freq(concept | high projection) − freq(concept | low
+    projection), where "high"/"low" are the top/bottom `top_frac` of activations ranked by the
+    probe's projection score. A concept equally common in both tails cancels to ~0 and drops out
+    (this is what removes the NLA's baseline tics, e.g. "Q&A format"); a concept the probe truly
+    keys on is frequent in the high tail and rare in the low tail → large positive association.
+
+    Args:
+        concepts: list (one entry per activation, aligned to `proj` by index) of concept-tag
+            lists; an entry may be None (unparseable) and is skipped.
+        proj: 1-D array of probe projection scores, one per activation, same index order as
+            `concepts`.
+        top_frac: fraction of activations taken from each end (e.g. 0.33 → top/bottom third).
+        min_count: drop concepts seen in fewer than this many activations overall (noise floor).
+
+    Returns:
+        (table, k) where `k` is the per-tail size (max(1, round(n * top_frac))) and `table` is a
+        list of dicts sorted by descending association, each:
+            {concept, freq_high, freq_low, association (= freq_high − freq_low), count}
+        with freq_high/freq_low computed as (tail occurrences) / k.
+
+    Note: a concept appearing in both tails contributes to both counts; ties in `proj` are broken
+    by argsort order, and the high/low tails are disjoint by construction.
+    """
     n = len(proj)
     k = max(1, int(round(n * top_frac)))
     order = np.argsort(proj)
@@ -78,8 +102,8 @@ def enrichment(concepts, proj, top_frac, min_count):
             continue
         fh, fl = r["high"] / k, r["low"] / k
         out.append({"concept": t, "freq_high": fh, "freq_low": fl,
-                    "enrichment": fh - fl, "count": r["count"]})
-    out.sort(key=lambda x: -x["enrichment"])
+                    "association": fh - fl, "count": r["count"]})
+    out.sort(key=lambda x: -x["association"])
     return out, k
 
 
@@ -111,17 +135,17 @@ def main():
     results = {}
     for name, d in probes.items():
         proj = P.project(A, d)
-        table, k = enrichment(concepts, proj, args.top_frac, args.min_count)
+        table, k = association(concepts, proj, args.top_frac, args.min_count)
         results[name] = table
-        print(f"\n=== {name} probe — top enriched concepts (high vs low third, k={k}) ===")
+        print(f"\n=== {name} probe — top associated concepts (high vs low third, k={k}) ===")
         for r in table[:8]:
-            print(f"  {r['enrichment']:+.2f}  {r['concept']}  "
+            print(f"  {r['association']:+.2f}  {r['concept']}  "
                   f"(high {r['freq_high']:.2f} / low {r['freq_low']:.2f}, n={r['count']})")
 
     out = {
         "run_name": rn, "model": MODEL, "clean_probe_src": clean_src,
         "config": {"top_frac": args.top_frac, "min_count": args.min_count, "n": len(A)},
-        "enrichment": results,
+        "association": results,
     }
     out_path = os.path.join(RESULTS_DIR, f"part3_enrichment_{rn}.json")
     json.dump(out, open(out_path, "w"), indent=2)
