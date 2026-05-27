@@ -148,7 +148,8 @@
     .nla-info { position:relative; display:inline-flex; align-items:center; justify-content:center;
                 width:14px; height:14px; margin-left:6px; border:1px solid var(--mute);
                 border-radius:50%; color:var(--soft); font-size:9px; font-weight:700;
-                font-style:normal; cursor:pointer; text-transform:none; letter-spacing:0; }
+                font-style:normal; cursor:pointer; text-transform:none; letter-spacing:0;
+                vertical-align:middle; }
     .nla-info .nla-tip { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%) translateY(4px);
                 width:320px; max-width:78vw; background:#fff; color:#33363c; text-align:left;
                 font-size:11.5px; line-height:1.55; font-weight:400; letter-spacing:0; white-space:normal;
@@ -158,7 +159,7 @@
     .nla-info .nla-tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
                 border:7px solid transparent; border-top-color:#fff;
                 filter:drop-shadow(0 1px 0 var(--line)); }
-    .nla-info.open .nla-tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
+    .nla-info.open .nla-tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); pointer-events:auto; }
     .nla-tip b { display:block; margin-bottom:4px; }
     .nla-seg { margin-left:auto; display:inline-flex; border:1px solid var(--line);
                border-radius:6px; overflow:hidden; }
@@ -190,6 +191,12 @@
     .author-note[hidden] { display:none; }
     .author-note a { color:var(--blue); }
     .note-lead { flex-shrink:0; white-space:nowrap; }
+    .newbie-note { display:flex; align-items:baseline; gap:10px; background:var(--green-wash);
+                   border:1px solid var(--green-soft); border-radius:6px; padding:12px 16px;
+                   font-size:14px; color:#2a4f3e; margin:6px 0 4px; }
+    .newbie-note[hidden] { display:none; }
+    .newbie-note a { color:var(--blue); }
+    .nla-info.concept-q { border-color:var(--green-soft); color:var(--green); margin-left:0; }
 
     /* floating table of contents */
     h2 { scroll-margin-top:24px; }
@@ -279,6 +286,14 @@
 
       </span>
     </div>
+    <p class="byline" style="color:#9aa0a6">🌱 Are you new to interpretability? <a href="#" id="newbie-toggle">[show]</a> <span class="nla-info concept-q" id="newbie-q-icon">?</span></p>
+    <div class="newbie-note" id="newbie-note" hidden>
+      <span>🌱</span>
+      <span>There are lots of pre-requisite concepts underpinning this work. To make this readable for a wider audience, I've included little green
+      <span class="nla-info concept-q" style="display:inline-flex;vertical-align:middle;margin-right:2px;">?<span class="nla-tip"><b>Like this!</b>Green (?) icons mark important concepts — click for a short explanation.</span></span>
+      icons beside the most important concepts. Read these as you go!
+      </span>
+    </div>
   <br>
 
   <figure class="headline">
@@ -336,9 +351,40 @@
 
   <h2 id="introduction">Introduction</h2>
   <p>
-    Probes are an important tool for safety and interpretability, useful in both pre-release model evaluation and in deployment monitoring.
-    They can be used to monitor a model's latent-space activations for the presence of specific concepts or behaviors. 
-    Probes can track potentially dangerous behaviors (such as deception, sandbagging, situational awareness) or topics (such as bio-weapons manufacturing, illegal activities).
+    Probes <span class="nla-info concept-q">?<span class="nla-tip"><b>Probes</b>
+        A probe is a small monitoring system trained on an AI model's activations (i.e. the "brain activity" between the prompt and the LLM response) to detect whether a 
+        specific concept is present.
+        <br><br>For example, a "bomb manufacturing" probe would be triggered when the model is asked about how to make a bomb.
+        <br><br>They are widely used in safety evaluation and deployment monitoring to watch for and prevent harmful LLM responses.
+      </span></span> 
+    are an important tool for AI safety and interpretability
+      <span class="nla-info concept-q">?<span class="nla-tip"><b>Interpretability</b>
+        Interpretability is like neuroscience for AI models — the field of studying what's going on inside of an AI's mind. The nature of how AI models 
+        are "grown" more than "built" means we don't by default understand why they do the things they do. 
+        <br><br>Interpretability research aims to change that, to improve our ability to develop safe and reliable AI systems. To date, this 
+        has yielded some very useful tools, like probes, which are heavily discussed in this work.
+      </span></span>
+      
+    , useful in both pre-release model evaluation and in deployment monitoring.
+
+    They can be used to monitor a model's latent-space activations
+      <span class="nla-info concept-q">?<span class="nla-tip"><b>Activations</b>
+        Neural networks process data through layers of numbers called "activations" — vectors of values encoding the model's internal state at each layer. 
+        The residual stream accumulates these across layers; probes and NLAs read from specific points in this stream to infer what the model is "thinking about."
+      </span></span> 
+    for the presence of specific concepts or behaviors. Probes can track potentially dangerous behaviors (such as deception, sandbagging, situational awareness
+    
+      <span class="nla-info concept-q">?<span class="nla-tip">
+        <b>Deception, sandbagging, situational awareness</b>
+        AI systems have been shown to show exhibit these behaviors in some circumstances.
+        <br><br><em>Deception:</em> saying things the model "knows" to be false. 
+        <br><br><em>Sandbagging:</em> deliberately 
+        underperforming on evaluations to avoid being flagged. 
+        <br><br><em>Situational awareness:</em> recognizing it is being evaluated and behaving differently as a result. 
+        <br><br>It is critical to be able to detect these when evaluating whether or not AI systems are safe.
+      </span></span>
+
+    ) or topics (such as bio-weapons manufacturing, illegal activities).
     <br><br>
     Ideally, probes fire any time the target concept is represented in the model's activations, and not otherwise.
     In practice however, a probe learns the difference between the training data "positive" set and "negative" set, and verifying 
@@ -359,7 +405,13 @@
   <br>
 
   <p>
-    Recent work on Natural Language Autoencoders (NLAs)<a href="#ref6" class="cite">[6]</a> introduced a tool for natural language readouts of a model's residual-stream 
+    Recent work on Natural Language Autoencoders (NLAs)<a href="#ref6" class="cite">[6]</a><span class="nla-info concept-q">?<span class="nla-tip"><b>Natural Language Autoencoders (NLAs)</b>A model trained to translate the neural
+        network activations (i.e. roughly "which neurons are firing") into a human-readable text description. Check out the "Refusal Probe Audit Pipeline Samples"
+        widget to see what this looks like.
+
+        <br><br>This gives us a rough way to "read the model's mind" and ask a model: "what are you thinking about?"
+        <br>In comparison, using probes limits us to asking something like "are you thinking about cats?".
+      </span></span> introduced a tool for natural language readouts of a model's residual-stream
     activations. This new "LLM mind reading" tool opens up interesting new possibilities in cross-checking probe behavior: use an NLA to compare the model's latent-space
     representations to the probe's output. If successful, this could be used to improve the reliability of the probes relied upon for critical, deployed safety applications.
     <br><br>
@@ -393,7 +445,7 @@
     <div class="nla-flow">
       <div class="nla-pane nla-prompt">
         <div class="nla-pane-label">1. Prompt<span class="nla-info">i<span class="nla-tip"><b>Target model</b>
-          Llama-3.3-70B-Instruct. The activation is read from <code>resid_post</code> at block 53 (last token).
+          The prompt is input to Llama-3.3-70B-Instruct. The activation is read from the residual stream at block 53 (last token).
           <a href="#appendix-a">See Appendix [A]</a>.</span></span></div>
         <div class="nla-chips">
           <button class="nla-chip harm on" data-i="0">🚫 Election tampering</button>
@@ -406,7 +458,8 @@
       <div class="nla-right">
         <div class="nla-pane nla-probe">
           <div class="nla-pane-label">2. Probe — refusal detected?<span class="nla-info">i<span class="nla-tip"><b>Probe</b>
-            A difference-of-means refusal direction (Arditi et al. 2024), scored by projection and thresholded.
+            The refusal probe is evaluated on the activations of the model at the last token. 
+            <br><br>The probe is a difference-of-means refusal direction (Arditi et al. 2024), scored by projection and thresholded.
             <a href="#appendix-b">See Appendix [B]</a>.</span></span></div>
           <div class="nla-box nla-probe-box" id="nla-pr"></div>
         </div>
@@ -426,8 +479,8 @@
           <div class="nla-arrow">→</div>
           <div class="nla-pane">
             <div class="nla-pane-label">4. concept judge<span class="nla-info">i<span class="nla-tip"><b>Concept judge</b>
-              Claude Sonnet (<code>claude-sonnet-4-6</code>) extracts ≤4 open-vocabulary concept tags from each
-              verbalization. <a href="#appendix-d">See Appendix [D]</a>.</span></span></div>
+              Claude Sonnet (<code>claude-sonnet-4-6</code>) extracts open-vocabulary concept tags from each NLA
+              verbalization. <br><br><a href="#appendix-d">See Appendix [D]</a> for the concept judge prompt.</span></span></div>
             <div class="nla-box nla-concepts" id="nla-cn"></div>
           </div>
         </div>
@@ -439,7 +492,7 @@
   <p>
     Next, the samples are collected and results ranked.
   </p>
-  <div class="nla-pane-label">5. Rank concepts by probe association<span class="nla-info">i<span class="nla-tip"><b>Association:</b>
+  <div class="nla-pane-label">5. Rank concepts by probe association<span class="nla-info">i<span class="nla-tip"><b>Association</b>
 How much more often a concept appears when the probe fires than when it's quiet (top vs bottom third by projection). <a href="#appendix-e">See Appendix [E]</a>.</span></span></div>
     <figure>
       <div class="fig single">
@@ -828,13 +881,17 @@ Respond with ONLY a JSON object: {"concepts": ["tag", ...]}</pre>
   for (var n = 0; n < infos.length; n++) {
     infos[n].addEventListener('click', function (e) {
       e.stopPropagation();
+      if (this.id === 'newbie-q-icon') return;
+      if (e.target.closest('.nla-tip')) return;
       var wasOpen = this.classList.contains('open');
       for (var m = 0; m < infos.length; m++) infos[m].classList.remove('open');
       if (!wasOpen) this.classList.add('open');
     });
   }
-  document.addEventListener('click', function () {
-    for (var m = 0; m < infos.length; m++) infos[m].classList.remove('open');
+  document.addEventListener('click', function (e) {
+    for (var m = 0; m < infos.length; m++) {
+      if (!infos[m].contains(e.target)) infos[m].classList.remove('open');
+    }
   });
 
   var noteToggle = document.getElementById('note-toggle');
@@ -847,6 +904,18 @@ Respond with ONLY a JSON object: {"concepts": ["tag", ...]}</pre>
       this.textContent = hidden ? "[hide]" : "[show]";
     });
   }
+
+  var newbieToggle = document.getElementById('newbie-toggle');
+  var newbieNote = document.getElementById('newbie-note');
+  function toggleNewbie() {
+    if (!newbieNote) return;
+    var hidden = newbieNote.hasAttribute('hidden');
+    if (hidden) newbieNote.removeAttribute('hidden'); else newbieNote.setAttribute('hidden', '');
+    if (newbieToggle) newbieToggle.textContent = hidden ? "[hide]" : "[show]";
+  }
+  if (newbieToggle) newbieToggle.addEventListener('click', function (e) { e.preventDefault(); toggleNewbie(); });
+  var newbieQIcon = document.getElementById('newbie-q-icon');
+  if (newbieQIcon) newbieQIcon.addEventListener('click', function (e) { e.stopPropagation(); toggleNewbie(); });
 
   // scroll-spy: highlight the TOC entry for the section currently in view
   var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
